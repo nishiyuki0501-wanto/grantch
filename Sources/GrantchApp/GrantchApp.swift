@@ -11,7 +11,7 @@ func L(_ key: String, _ arguments: CVarArg...) -> String {
     return arguments.isEmpty ? format : String(format: format, locale: .current, arguments: arguments)
 }
 
-let appName = L("にゃんこのスタミナ")
+let appName = "Grantch"
 
 /// One request that auto-approval let through, kept so the user can read back
 /// what ran while they were away.

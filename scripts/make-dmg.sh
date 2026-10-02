@@ -2,7 +2,7 @@
 # Wraps a built app in a drag-to-install disk image with a link to
 # /Applications, then signs, notarizes, and staples the image.
 #
-#   scripts/make-dmg.sh dist/NyankoStamina.app 0.2.0 dist/NyankoStamina-0.2.0-macos-universal.dmg
+#   scripts/make-dmg.sh dist/Grantch.app 0.2.0 dist/Grantch-0.2.0-macos-universal.dmg
 #
 # SIGN_IDENTITY and NOTARY_PROFILE work as in package.sh. For a release, pass
 # an app that is already notarized and stapled so it also opens offline.
@@ -29,7 +29,7 @@ ln -s /Applications "$staging/Applications"
 
 echo "==> Creating $dmg"
 rm -f "$dmg"
-hdiutil create -volname "にゃんこのスタミナ $version" -srcfolder "$staging" -fs HFS+ -format UDZO -quiet "$dmg"
+hdiutil create -volname "Grantch $version" -srcfolder "$staging" -fs HFS+ -format UDZO -quiet "$dmg"
 
 if [[ "$identity" != "-" ]]; then
     codesign --force --timestamp --sign "$identity" "$dmg"

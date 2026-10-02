@@ -1,7 +1,5 @@
-/* English for Nyanko no Stamina. Japanese is the base language: each key is
+/* English for Grantch. Japanese is the base language: each key is
    the Japanese text shown when no translation applies. */
-
-"にゃんこのスタミナ" = "Nyanko no Stamina";
 
 /* Risk levels */
 "低リスク" = "Low risk";

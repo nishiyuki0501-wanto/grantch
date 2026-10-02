@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='grantch-config-') as directory:
     output = run(home, 'install', str(bridge), lang='ja').stdout
     assert 'Claude Code の承認フックをインストールしました' in output, output
     status = json.loads((home / '.claude/settings.json').read_text())['hooks']['PermissionRequest'][0]['hooks'][0]['statusMessage']
-    assert status == 'にゃんこのスタミナで承認待ち', status
+    assert status == 'Grantchで承認待ち', status
 
 print('PASS: installer idempotence, exact uninstall, private backups beside links, modes kept, '
       'symlinks (including dangling) kept, absent CLIs skipped, Japanese and English messages')

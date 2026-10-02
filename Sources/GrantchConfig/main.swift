@@ -10,9 +10,9 @@ let usesEnglish: Bool = {
 
 func t(_ japanese: String, _ english: String) -> String { usesEnglish ? english : japanese }
 
-let appName = t("にゃんこのスタミナ", "Nyanko no Stamina")
+let appName = "Grantch"
 /// The name as it reads inside a sentence.
-let quotedAppName = t("「にゃんこのスタミナ」", "Nyanko no Stamina")
+let quotedAppName = "Grantch"
 
 enum ConfigError: LocalizedError {
     case usage

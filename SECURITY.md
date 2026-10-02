@@ -16,7 +16,7 @@
 
 ## セキュリティモデル
 
-「にゃんこのスタミナ」（プロジェクト名 `grantch`）は承認のための画面であって、サンドボックスではありません。何を守れるかと同じくらい、どこまでしか守れないかを知っておくことが大切です。
+Grantch（プロジェクト名 `grantch`）は承認のための画面であって、サンドボックスではありません。何を守れるかと同じくらい、どこまでしか守れないかを知っておくことが大切です。
 
 **信頼の境界は、あなたの macOS ユーザーアカウントです。** ブリッジとアプリは、`~/Library/Application Support/Grantch/run/grantch.sock` の Unix ソケットで通信します。ディレクトリの権限は `0700`、ソケットの権限は `0600` で、ユーザー ID が異なる接続は拒否します。ただし、同じユーザーとして既に動いているプロセスは、接続して要求を送ったり、承認待ちの要求を消したりできます。あなたのアカウントで既に動いているソフトウェアからは守れません。
 
@@ -56,10 +56,10 @@
 リリース版のアプリと DMG は、どちらも WANTO, K.K.（Team ID `588KRU9YN6`）の Developer ID で署名し、Apple の公証を受けています。配布するバイナリにデバッグ情報は含みません。各リリースには、ファイルごとの SHA-256 を載せています。ダウンロードしたものは、次のように確認できます。
 
 ```sh
-shasum -a 256 -c NyankoStamina-*-macos-universal.dmg.sha256
-spctl --assess --type open --context context:primary-signature --verbose=2 NyankoStamina-*-macos-universal.dmg
-codesign -dv --verbose=2 /Applications/NyankoStamina.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
-spctl --assess --type execute --verbose=2 /Applications/NyankoStamina.app
+shasum -a 256 -c Grantch-*-macos-universal.dmg.sha256
+spctl --assess --type open --context context:primary-signature --verbose=2 Grantch-*-macos-universal.dmg
+codesign -dv --verbose=2 /Applications/Grantch.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
+spctl --assess --type execute --verbose=2 /Applications/Grantch.app
 ```
 
 `TeamIdentifier` が `588KRU9YN6` で、`spctl` が `source=Notarized Developer ID` と表示すれば正しい配布物です。

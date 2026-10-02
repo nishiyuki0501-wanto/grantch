@@ -1,19 +1,19 @@
-# Nyanko no Stamina (にゃんこのスタミナ)
+# Grantch
 
 [日本語](README.md) | English
 
-Nyanko no Stamina is a local-first macOS approval surface for AI coding agents. Claude Code and Codex CLI `PermissionRequest` events and Antigravity CLI `PreToolUse` events are forwarded through a user-only Unix socket and answered from a notch-aligned macOS panel.
+Grantch is a local-first macOS approval surface for AI coding agents. Claude Code and Codex CLI `PermissionRequest` events and Antigravity CLI `PreToolUse` events are forwarded through a user-only Unix socket and answered from a notch-aligned macOS panel.
 
 The interface follows your macOS language: Japanese, or English. Requires macOS 15 or later. The repository, the command-line tools, and the internal identifiers use the project name `grantch`.
 
 ## Install
 
-1. Download `NyankoStamina-<version>-macos-universal.dmg` from [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases), open it, and drag Nyanko no Stamina to Applications. A zip with the same app is also available.
-2. Open Nyanko no Stamina. It lives in the notch and has no Dock icon.
+1. Download `Grantch-<version>-macos-universal.dmg` from [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases), open it, and drag Grantch to Applications. A zip with the same app is also available.
+2. Open Grantch. It lives in the notch and has no Dock icon.
 3. Install the CLI hooks:
 
    ```sh
-   /Applications/NyankoStamina.app/Contents/MacOS/grantch-config install
+   /Applications/Grantch.app/Contents/MacOS/grantch-config install
    ```
 
    The installer configures only the CLIs you have run at least once (`~/.claude`, `~/.codex`, `~/.gemini`). Run it again after installing another one.
@@ -21,7 +21,7 @@ The interface follows your macOS language: Japanese, or English. Requires macOS 
 4. Restart running Claude Code, Codex CLI, and Antigravity CLI sessions. Codex asks you to review and trust the new hook on its next launch.
 5. Add the app to **System Settings → General → Login Items** so it is running after a restart. It does not add itself. While it is not running, Claude Code and Codex use their own prompts and Antigravity requests are denied.
 
-To update: quit the app (right-click the notch → Quit Nyanko no Stamina), replace the app, open it, run the install command again so the copied bridge matches the app, and restart the CLIs. If you used 0.1.0, delete `Grantch.app` from Applications as well.
+To update: quit the app (right-click the notch → Quit Grantch), replace the app, open it, run the install command again so the copied bridge matches the app, and restart the CLIs.
 
 Read [SECURITY.en.md](SECURITY.en.md) for what it does and does not protect against.
 
@@ -127,10 +127,10 @@ The bridge then appends each invocation to `~/Library/Application Support/Grantc
 ## Uninstall
 
 ```sh
-/Applications/NyankoStamina.app/Contents/MacOS/grantch-config uninstall
+/Applications/Grantch.app/Contents/MacOS/grantch-config uninstall
 ```
 
-This removes only the app's handlers and the copied bridge. Then quit the app (right-click the notch → Quit Nyanko no Stamina), delete it from Applications, remove it from Login Items, and optionally delete `~/Library/Application Support/Grantch`. Backups the installer made sit next to each settings file as `*.grantch-backup-*`. Codex identifies trusted hooks partly by position, so hooks you added after ours in `~/.codex/hooks.json` may need to be trusted again.
+This removes only the app's handlers and the copied bridge. Then quit the app (right-click the notch → Quit Grantch), delete it from Applications, remove it from Login Items, and optionally delete `~/Library/Application Support/Grantch`. Backups the installer made sit next to each settings file as `*.grantch-backup-*`. Codex identifies trusted hooks partly by position, so hooks you added after ours in `~/.codex/hooks.json` may need to be trusted again.
 
 ## Releasing
 

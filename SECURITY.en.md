@@ -12,7 +12,7 @@ Only the latest release receives fixes.
 
 ## Security model
 
-Nyanko no Stamina (project name `grantch`) is an approval surface, not a sandbox. Knowing where its protection ends matters as much as what it does.
+Grantch (project name `grantch`) is an approval surface, not a sandbox. Knowing where its protection ends matters as much as what it does.
 
 **Trust boundary: your macOS user account.** The bridge talks to the app over a Unix socket at `~/Library/Application Support/Grantch/run/grantch.sock`. The directory is `0700`, the socket is `0600`, and the app rejects peers whose user ID differs from its own. Any process already running as you can still connect, submit requests, or dismiss pending ones. The app does not defend against software that already runs under your account.
 
@@ -43,10 +43,10 @@ Nyanko no Stamina (project name `grantch`) is an approval surface, not a sandbox
 Release builds are signed with the Developer ID of WANTO, K.K. (Team ID `588KRU9YN6`) and notarized by Apple, both the app and the disk image. Release binaries ship without debug symbols. Each release lists the SHA-256 of its files. To check a download:
 
 ```sh
-shasum -a 256 -c NyankoStamina-*-macos-universal.dmg.sha256
-spctl --assess --type open --context context:primary-signature --verbose=2 NyankoStamina-*-macos-universal.dmg
-codesign -dv --verbose=2 /Applications/NyankoStamina.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
-spctl --assess --type execute --verbose=2 /Applications/NyankoStamina.app
+shasum -a 256 -c Grantch-*-macos-universal.dmg.sha256
+spctl --assess --type open --context context:primary-signature --verbose=2 Grantch-*-macos-universal.dmg
+codesign -dv --verbose=2 /Applications/Grantch.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
+spctl --assess --type execute --verbose=2 /Applications/Grantch.app
 ```
 
 `TeamIdentifier` must read `588KRU9YN6`, and `spctl` must report `source=Notarized Developer ID`.

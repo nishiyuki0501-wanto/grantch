@@ -45,7 +45,7 @@ python3 Tests/Integration/localization_test.py
 
 scripts/package.sh "$version"
 
-artifact="dist/NyankoStamina-$version-macos-universal"
+artifact="dist/Grantch-$version-macos-universal"
 dmg="$artifact.dmg"
 zip="$artifact.zip"
 notes="dist/release-notes.md"
@@ -62,18 +62,18 @@ section() {
 
 ## インストール
 
-1. \`$(basename "$dmg")\` をダウンロードして開き、「にゃんこのスタミナ」を「アプリケーション」フォルダへドラッグします。
-2. 「にゃんこのスタミナ」を開きます。ノッチに常駐し、Dock には表示されません。
+1. \`$(basename "$dmg")\` をダウンロードして開き、Grantch を「アプリケーション」フォルダへドラッグします。
+2. Grantch を開きます。ノッチに常駐し、Dock には表示されません。
 3. CLI のフックをインストールします。
 
    \`\`\`sh
-   /Applications/NyankoStamina.app/Contents/MacOS/grantch-config install
+   /Applications/Grantch.app/Contents/MacOS/grantch-config install
    \`\`\`
 
 4. 起動中の Claude Code・Codex CLI・Antigravity CLI を再起動します。
 5. 再起動後も動くように、システム設定 →「一般」→「ログイン項目」に追加します。
 
-更新するときは、ノッチを右クリック →「にゃんこのスタミナを終了」で終了し、アプリを置き換えて開き、もう一度 install を実行します。zip 版も同じ内容です。
+更新するときは、ノッチを右クリック →「Grantch を終了」で終了し、アプリを置き換えて開き、もう一度 install を実行します。zip 版も同じ内容です。
 
 macOS 15 以降が必要です。WANTO, K.K.（Team ID 588KRU9YN6）の Developer ID で署名し、Apple の公証を受けています。守れる範囲と守れない範囲は [SECURITY.md](https://github.com/nishiyuki0501-wanto/grantch/blob/main/SECURITY.md) を読んでください。
 
@@ -87,18 +87,18 @@ NOTES
 
 ### Install
 
-1. Download \`$(basename "$dmg")\`, open it, and drag Nyanko no Stamina to Applications.
-2. Open Nyanko no Stamina. It runs from the notch and has no Dock icon. The interface follows your macOS language (Japanese or English).
+1. Download \`$(basename "$dmg")\`, open it, and drag Grantch to Applications.
+2. Open Grantch. It runs from the notch and has no Dock icon. The interface follows your macOS language (Japanese or English).
 3. Install the CLI hooks:
 
    \`\`\`sh
-   /Applications/NyankoStamina.app/Contents/MacOS/grantch-config install
+   /Applications/Grantch.app/Contents/MacOS/grantch-config install
    \`\`\`
 
 4. Restart running Claude Code, Codex CLI, and Antigravity CLI sessions.
 5. Add the app to System Settings → General → Login Items so it runs after a restart.
 
-To update: right-click the notch → Quit Nyanko no Stamina, replace the app, open it, and run the install command again. The zip contains the same app.
+To update: right-click the notch → Quit Grantch, replace the app, open it, and run the install command again. The zip contains the same app.
 
 Requires macOS 15 or later. Signed with the Developer ID of WANTO, K.K. (Team ID 588KRU9YN6) and notarized by Apple. Read [SECURITY.en.md](https://github.com/nishiyuki0501-wanto/grantch/blob/main/SECURITY.en.md) for what it does and does not protect against.
 
@@ -115,6 +115,6 @@ echo "==> Creating draft release $tag"
 gh release create "$tag" "$dmg" "$dmg.sha256" "$zip" "$zip.sha256" \
     --draft \
     --target "$(git rev-parse HEAD)" \
-    --title "にゃんこのスタミナ $version" \
+    --title "Grantch $version" \
     --notes-file "$notes"
 echo "Draft created. Review and publish it on GitHub."

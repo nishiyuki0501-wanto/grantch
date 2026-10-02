@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the universal app (にゃんこのスタミナ / Nyanko no Stamina) and a
+# Builds the universal app (Grantch) and a
 # distributable disk image and zip in dist/.
 #
 #   scripts/package.sh 0.2.0
@@ -26,9 +26,7 @@ fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 dist="$root/dist"
-# The bundle's file name stays ASCII so the installer path is easy to type;
-# Finder shows the localized name from Localization/*.lproj/InfoPlist.strings.
-app_file="NyankoStamina"
+app_file="Grantch"
 app="$dist/$app_file.app"
 artifact="$dist/$app_file-$version-macos-universal"
 zip="$artifact.zip"

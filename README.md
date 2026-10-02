@@ -1,19 +1,19 @@
-# にゃんこのスタミナ
+# Grantch
 
 日本語 | [English](README.en.md)
 
-「にゃんこのスタミナ」は、AI コーディングエージェントの承認を macOS のノッチで行うアプリです。Claude Code と Codex CLI の `PermissionRequest`、Antigravity CLI の `PreToolUse` を、自分だけが使える Unix ソケット経由でノッチのパネルに表示し、そこで許可・拒否します。通信はすべてこの Mac の中で完結します。
+Grantch は、AI コーディングエージェントの承認を macOS のノッチで行うアプリです。Claude Code と Codex CLI の `PermissionRequest`、Antigravity CLI の `PreToolUse` を、自分だけが使える Unix ソケット経由でノッチのパネルに表示し、そこで許可・拒否します。通信はすべてこの Mac の中で完結します。
 
 画面は macOS の言語設定に合わせて日本語または英語で表示されます。macOS 15 以降が必要です。リポジトリ名、コマンド名、内部の識別子には、プロジェクト名の `grantch` を使っています。
 
 ## インストール
 
-1. [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases) から `NyankoStamina-<バージョン>-macos-universal.dmg` をダウンロードして開き、「にゃんこのスタミナ」を「アプリケーション」フォルダへドラッグします。同じ内容の zip もあります。
-2. 「にゃんこのスタミナ」を開きます。ノッチに常駐し、Dock には表示されません。
+1. [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases) から `Grantch-<バージョン>-macos-universal.dmg` をダウンロードして開き、Grantch を「アプリケーション」フォルダへドラッグします。同じ内容の zip もあります。
+2. Grantch を開きます。ノッチに常駐し、Dock には表示されません。
 3. CLI のフックをインストールします。
 
    ```sh
-   /Applications/NyankoStamina.app/Contents/MacOS/grantch-config install
+   /Applications/Grantch.app/Contents/MacOS/grantch-config install
    ```
 
    一度でも起動したことのある CLI（`~/.claude`、`~/.codex`、`~/.gemini` がある CLI）だけを設定します。あとから CLI を追加したときは、もう一度実行してください。
@@ -21,7 +21,7 @@
 4. 起動中の Claude Code・Codex CLI・Antigravity CLI を再起動します。Codex は次回起動時に、追加したフックの確認と信頼を求めます。
 5. 再起動後も動くように、**システム設定 →「一般」→「ログイン項目」** に追加します。アプリが自分で追加することはありません。アプリが動いていない間は、Claude Code と Codex はそれぞれの通常の確認画面になり、Antigravity の要求は拒否されます。
 
-更新するときは、ノッチを右クリック →「にゃんこのスタミナを終了」で終了し、アプリを置き換えて開きます。その後、もう一度 install を実行して、コピー済みのブリッジをアプリと同じ版にそろえ、CLI を再起動してください。0.1.0 を使っていた場合は、「アプリケーション」フォルダの `Grantch.app` も削除してください。
+更新するときは、ノッチを右クリック →「Grantch を終了」で終了し、アプリを置き換えて開きます。その後、もう一度 install を実行して、コピー済みのブリッジをアプリと同じ版にそろえ、CLI を再起動してください。
 
 守れる範囲と守れない範囲は [SECURITY.md](SECURITY.md) にまとめています。必ず読んでください。
 
@@ -142,10 +142,10 @@ touch ~/Library/Application\ Support/Grantch/debug-hook-log
 ## アンインストール
 
 ```sh
-/Applications/NyankoStamina.app/Contents/MacOS/grantch-config uninstall
+/Applications/Grantch.app/Contents/MacOS/grantch-config uninstall
 ```
 
-このコマンドが取り除くのは、追加したフックとコピーしたブリッジだけです。その後、ノッチを右クリック →「にゃんこのスタミナを終了」で終了します。アプリを「アプリケーション」フォルダから削除し、ログイン項目からも外してください。必要なら `~/Library/Application Support/Grantch` も削除します。
+このコマンドが取り除くのは、追加したフックとコピーしたブリッジだけです。その後、ノッチを右クリック →「Grantch を終了」で終了します。アプリを「アプリケーション」フォルダから削除し、ログイン項目からも外してください。必要なら `~/Library/Application Support/Grantch` も削除します。
 
 インストーラが作ったバックアップは、各設定ファイルの隣に `*.grantch-backup-*` という名前で残っています。Codex は信頼したフックを順番も含めて識別するので、`~/.codex/hooks.json` でこのアプリの後に追加したフックは、もう一度信頼が必要になることがあります。
 

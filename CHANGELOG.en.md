@@ -8,8 +8,7 @@ All notable changes are recorded here. Versions follow [Semantic Versioning](htt
 
 ### Changed
 
-- The app is now named にゃんこのスタミナ (Nyanko no Stamina in English). The bundle is `NyankoStamina.app`; the repository, the `grantch-hook` and `grantch-config` tools, the socket, and settings paths keep the project name `grantch`. If you used 0.1.0, delete `Grantch.app` and run the install command again.
-- Japanese is the base language throughout, with English available: the interface, risk reasons, and app name follow your macOS language, `grantch-config` prints Japanese or English (`GRANTCH_LANG` overrides it), and the documentation is in Japanese with English versions.
+- Japanese is the base language throughout, with English available: the interface and risk reasons follow your macOS language, `grantch-config` prints Japanese or English (`GRANTCH_LANG` overrides it), and the documentation is in Japanese with English versions.
 - The status message Claude Code and Codex show while waiting is written in the installer's language.
 
 ### Added
