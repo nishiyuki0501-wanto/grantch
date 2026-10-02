@@ -37,6 +37,15 @@ rm -rf "$dist"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/Grantch" "$bin/grantch-hook" "$bin/grantch-config" "$app/Contents/MacOS/"
 cp Assets/Grantch.icns LICENSE "$app/Contents/Resources/"
+# Debug symbols carry absolute build paths (and so the builder's home
+# directory and user name); release binaries ship without them.
+strip -S -x "$app/Contents/MacOS/Grantch" "$app/Contents/MacOS/grantch-hook" "$app/Contents/MacOS/grantch-config" 2>/dev/null
+for leaked in "$HOME" "$root"; do
+    if LC_ALL=C grep -r -a -l -F "$leaked" "$app"; then
+        echo "a local path ($leaked) is embedded in the files above" >&2
+        exit 1
+    fi
+done
 build_number="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
