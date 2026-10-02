@@ -30,5 +30,7 @@ jobs:
         run: |
           swift build -c release
           python3 Tests/Integration/config_test.py
-      - name: Package (ad-hoc signed, not distributed)
+      - name: Localization test
+        run: python3 Tests/Integration/localization_test.py
+      - name: Package app, disk image, and zip (ad-hoc signed, not distributed)
         run: scripts/package.sh 0.0.0

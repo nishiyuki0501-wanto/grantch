@@ -1,0 +1,79 @@
+/* English for Nyanko no Stamina. Japanese is the base language: each key is
+   the Japanese text shown when no translation applies. */
+
+"にゃんこのスタミナ" = "Nyanko no Stamina";
+
+/* Risk levels */
+"低リスク" = "Low risk";
+"注意" = "Caution";
+"高リスク" = "High risk";
+"危険" = "Critical";
+
+/* Risk reasons */
+"ファイルを再帰的に削除します" = "Deletes files recursively";
+"受け取った内容をシェルで実行します" = "Runs received content in a shell";
+"エージェント・承認フック・ログイン時の設定を変更する可能性があります" = "May change agent, approval hook, or login settings";
+"Git履歴を強制的に上書きします" = "Force-overwrites Git history";
+"データベースを破壊する操作です" = "Destroys database data";
+"管理者権限を要求します" = "Requests administrator privileges";
+"認証情報へアクセスする可能性があります" = "May access credentials";
+"外部環境を変更する可能性があります" = "May change external environments";
+"ネットワークへ接続します" = "Connects to the network";
+"ファイルまたは権限を変更します" = "Changes files or permissions";
+"既知の高危険操作には一致しません" = "Matches no known high-risk operation";
+
+/* Themes */
+"セージ" = "Sage";
+"ブルー" = "Blue";
+"バイオレット" = "Violet";
+"サンド" = "Sand";
+
+/* Approval queue */
+"承認確認" = "Approval";
+"%ld件" = "%ld";
+"ほか %ld件の承認待ち" = "%ld more waiting";
+"拒否" = "Deny";
+"この操作を実行させません" = "Don't let this operation run";
+"停止" = "Stop";
+"拒否して、エージェントの作業も中断します" = "Deny and interrupt the agent";
+"セッション: %@" = "Session: %@";
+"このセッションのあいだ、%@ に当てはまる操作を確認なしで許可します" = "Allow anything matching %@ without asking for the rest of this session";
+"許可" = "Allow";
+"今回の操作だけを許可します" = "Allow this operation only";
+"エージェントの説明: %@" = "Agent's description: %@";
+"長押しで許可" = "Hold to allow";
+"危険な操作を許可" = "Allow risky operation";
+"1.2秒間押し続けます" = "Press and hold for 1.2 seconds";
+
+/* Notch and status */
+"停止中" = "Not running";
+"自動承認中" = "Auto-approving";
+"承認待ちなし" = "No pending requests";
+"承認要求を受け取れません: %@\nClaude Code と Codex は通常の確認に戻り、Antigravity は拒否されます。" = "Cannot receive approval requests: %@\nClaude Code and Codex fall back to their own prompts, and Antigravity requests are denied.";
+"%@ は承認要求を受け取れません: %@" = "%@ cannot receive approval requests: %@";
+"%@を終了" = "Quit %@";
+"%@、停止中" = "%@, not running";
+"%@、自動承認中" = "%@, auto-approving";
+"%@、監視中" = "%@, watching";
+"クリックするとピン留めを解除します" = "Click to unpin";
+"クリックすると承認待ち表示を固定します" = "Click to pin the panel open";
+
+/* Auto-approval */
+"15分" = "15 min";
+"1時間" = "1 hour";
+"3時間" = "3 hours";
+"+15分" = "+15 min";
+"自動承認" = "Auto-approve";
+"自動承認 %@" = "Auto-approve for %@";
+"自動承認をオフにする" = "Turn off auto-approval";
+"自動承認中です。すべての承認要求が確認なしで許可されます" = "Auto-approval is on. Every request is allowed without asking.";
+"%@のあいだ、すべての承認要求を確認なしで許可します" = "Allow every request without asking for %@";
+"残り %@" = "%@ left";
+"オフ" = "Off";
+"すべての要求を確認なしで許可しています" = "Allowing every request without asking";
+"前回の自動承認" = "Last auto-approval";
+"消去" = "Clear";
+"自動承認の記録を消去します" = "Clear the auto-approval record";
+"まだ何も通っていません" = "Nothing has been let through yet";
+"計 %ld件を自動承認" = "%ld auto-approved in total";
+"計 %ld件を自動承認（最新 %ld件を保持）" = "%ld auto-approved in total (latest %ld kept)";

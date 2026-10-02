@@ -1,49 +1,65 @@
-# Security Policy
+# セキュリティポリシー
 
-## Reporting a vulnerability
+日本語 | [English](SECURITY.en.md)
 
-Please report vulnerabilities privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability**. Do not open a public issue for anything that could let an agent run an operation the user did not approve.
+## 脆弱性の報告
 
-Include the Grantch version, macOS version, the CLI involved (Claude Code, Codex CLI, or Antigravity CLI) and its version, and steps to reproduce. Reports are read and answered as soon as possible.
+脆弱性は GitHub で非公開のまま報告してください。リポジトリの **Security** タブを開き、**Report a vulnerability** を選びます。ユーザーが許可していない操作をエージェントに実行させられる可能性のある問題は、公開の Issue には書かないでください。
 
-Only the latest release receives fixes.
+報告には、次の情報を含めてください。報告は日本語でも英語でも受け付けます。届いた報告は、できるだけ早く確認して返信します。
 
-## Security model
+- アプリのバージョンと macOS のバージョン
+- 関係する CLI（Claude Code・Codex CLI・Antigravity CLI）とそのバージョン
+- 再現手順
 
-Grantch is an approval surface, not a sandbox. Knowing where its protection ends matters as much as what it does.
+修正するのは最新のリリースだけです。
 
-**Trust boundary: your macOS user account.** The bridge talks to the app over a Unix socket at `~/Library/Application Support/Grantch/run/grantch.sock`. The directory is `0700`, the socket is `0600`, and the app rejects peers whose user ID differs from its own. Any process already running as you can still connect, submit requests, or dismiss pending ones. Grantch does not defend against software that already runs under your account.
+## セキュリティモデル
 
-**Grantch answers only what the CLI asks.** Claude Code and Codex CLI send a request when they would otherwise show their own permission prompt. Anything those CLIs already allow (allowlists, `--dangerously-skip-permissions`, bypass or full-auto modes) never reaches Grantch. An agent that is allowed to edit `~/.claude/settings.json`, `~/.codex/hooks.json`, or `~/.gemini/config/hooks.json` can also remove the Grantch hook; such edits are labeled critical.
+「にゃんこのスタミナ」（プロジェクト名 `grantch`）は承認のための画面であって、サンドボックスではありません。何を守れるかと同じくらい、どこまでしか守れないかを知っておくことが大切です。
 
-**Antigravity runs with Grantch as its only gate.** The recommended `agy --dangerously-skip-permissions` removes Antigravity's own prompt. Grantch then gates only `run_command`, file writes, and `ask_permission`. Other tools, including `view_file`, `read_url_content`, `manage_task`, subagents, and MCP tools, run without asking. Grantch fails closed for the gated tools while its hook is loaded (an expired, cancelled, or undecidable request is denied), but if the hook is not loaded, nothing asks before any tool runs.
+**信頼の境界は、あなたの macOS ユーザーアカウントです。** ブリッジとアプリは、`~/Library/Application Support/Grantch/run/grantch.sock` の Unix ソケットで通信します。ディレクトリの権限は `0700`、ソケットの権限は `0600` で、ユーザー ID が異なる接続は拒否します。ただし、同じユーザーとして既に動いているプロセスは、接続して要求を送ったり、承認待ちの要求を消したりできます。あなたのアカウントで既に動いているソフトウェアからは守れません。
 
-**What you see is the input, not the agent's account of it.** Shell tools show their command, marked when the sandbox is disabled, permissions are escalated, or a working directory is set. Known built-in file, web, and search tools show their name and target. Every other tool, including MCP tools, shows its whole input as JSON. An agent-written `description` appears only in the hover text, labeled as the agent's description. Line breaks, control characters, bidirectional and invisible characters, and non-ASCII spaces are shown as visible markers, and long runs of spaces are counted, because all of these can make text display differently from how it executes. Tool input nested more than 64 levels deep is not decoded; such a request falls back as described below. Long commands are truncated in the middle; hover over the command to read all of it before approving. Codex reports the host of a network-access approval only in its description, so check the hover text for those.
+**答えるのは、CLI が尋ねてきたことだけです。** Claude Code と Codex CLI は、本来なら自分の確認画面を出す場面で要求を送ってきます。CLI が既に許可しているもの（許可リスト、`--dangerously-skip-permissions`、バイパスモード、フルオートモード）は、このアプリには届きません。また、`~/.claude/settings.json`、`~/.codex/hooks.json`、`~/.gemini/config/hooks.json` の編集を許されたエージェントは、フックを削除できます。こうした編集は「危険」と表示します。
 
-**Risk labels are keyword heuristics.** They choose between one-click and press-and-hold approval and help you prioritize. They do not analyze what a command does, and a command labeled low risk can still be destructive. Hover over the label for the reasons it was given.
+**Antigravity では、このアプリが唯一の確認窓口になります。** 推奨する `agy --dangerously-skip-permissions` で起動すると、Antigravity 自身の確認がなくなります。そのうえで、このアプリが確認するのは `run_command`、ファイルの書き込み、`ask_permission` だけです。`view_file`、`read_url_content`、`manage_task`、サブエージェント、MCP ツールなどは確認なしで実行されます。フックが読み込まれている間は、確認対象のツールについて安全側に倒します（期限切れ・取り消し・判断できない要求は拒否します）。ただし、フックが読み込まれていなければ、どのツールも確認なしで実行されます。
 
-**Session approval can be broader than the request.** For Claude Code, the session button applies the rule Claude Code suggested, and the button shows that rule. A rule such as `Bash(git:*)` covers every matching call for the rest of the session, including riskier ones, and those calls no longer reach Grantch. Grantch always limits it to the session, whatever destination Claude Code suggested.
+**表示するのは実際の入力で、エージェントの言い分ではありません。**
 
-**Auto-approval approves everything.** While it is on, every request from every CLI, critical ones included, is allowed without asking. It lasts at most until its timer ends or Grantch quits. Its record of what it let through stays visible until the next window starts or you clear it.
+- シェル系のツールは、コマンドそのものを表示します。サンドボックスの無効化、権限の昇格、作業ディレクトリの指定があれば目印を付けます
+- ファイル・Web・検索などの既知のツールは、ツール名と対象を表示します
+- MCP ツールを含むそれ以外のツールは、入力の全体を JSON で表示します
+- エージェントが書いた `description` は、ホバー時に「エージェントの説明」と明記して表示するだけです
+- 改行、制御文字、表示の向きを変える文字、目に見えない文字、ASCII 以外の空白は、目に見える記号で表示します。長く続く空白は数で表示します。どれも、実行される内容と違う見た目にできてしまうためです
+- 64段より深く入れ子になった入力は読み込みません。その要求は、後述の安全側の動作になります
+- 長いコマンドは中央が省略されます。許可する前に、コマンドにマウスを乗せて全文を確認してください
+- Codex は、ネットワークアクセスの承認で接続先のホストを説明文にしか入れません。そうした要求はホバー表示を確認してください
 
-**Fail-safe defaults.** If Grantch is not running or the bridge cannot complete a request, Claude Code and Codex CLI fall back to their own permission prompt, and Antigravity requests are denied. Unanswered requests go back to the CLI the same way after five minutes. Completion and session-end notifications only dismiss a pending request; they never approve one. If the app cannot open its socket, the notch shows a red `ERROR` badge rather than looking idle. Grantch does not start at login unless you add it to Login Items.
+**危険度のラベルは、キーワードによる推測です。** ラベルによって、1クリックで許可できるか、長押しが必要かが決まり、優先度の目安にもなります。ただし、コマンドの動作を解析しているわけではないので、「低リスク」のコマンドでも破壊的な場合があります。ラベルにマウスを乗せると、判定の理由が表示されます。
 
-**Misclick protection.** Decision buttons ignore clicks for half a second after a request appears or moves up in the queue, so a click aimed at something else cannot approve it. High and critical requests need a 1.2-second press-and-hold.
+**「セッション中」の許可は、要求より広い範囲に及ぶことがあります。** Claude Code では、このボタンは Claude Code が提案したルールを適用し、ボタンにもそのルールを表示します。たとえば `Bash(git:*)` のようなルールは、そのセッションの間、より危険なものも含めて当てはまる呼び出しすべてを許可し、それらはこのアプリに届かなくなります。Claude Code が保存先として何を提案しても、適用範囲は必ずそのセッションだけに限ります。
 
-**Local only.** Grantch makes no network connections and collects no telemetry. Requests are held in memory only.
+**自動承認は、すべてを許可します。** 自動承認中は、すべての CLI からのすべての要求を、「危険」なものも含めて確認なしで許可します。続くのは、タイマーが終わるかアプリを終了するまでです。許可した内容の一覧は、次の自動承認を始めるか消去するまで表示されます。
 
-**Debug log.** Creating `~/Library/Application Support/Grantch/debug-hook-log` makes the bridge append every hook invocation, including command text and file paths, to `~/Library/Application Support/Grantch/log/hook.log` (mode `0600`, reset at 1 MB). Delete the flag file to stop logging, and delete the log when you are done.
+**安全側の初期動作。** アプリが動いていないか、ブリッジが要求を処理できない場合、Claude Code と Codex CLI はそれぞれの確認画面に戻り、Antigravity の要求は拒否されます。5分間回答がなかった要求も、同じように CLI に返します。完了やセッション終了の通知は、承認待ちの要求を消すだけで、承認として扱うことはありません。アプリがソケットを開けないときは、待機中に見えないよう、ノッチに赤い `ERROR` 表示を出します。ログイン項目に追加しない限り、ログイン時には起動しません。
 
-**Installer.** `grantch-config` edits only the hook sections it owns and backs up each file once per run, beside the settings path, readable only by you. Settings files can contain tokens, so do not commit those backups.
+**誤クリック対策。** 承認要求が表示された直後と、行が繰り上がった直後の 0.5 秒間はボタンが反応しないので、別の場所を狙ったクリックで許可されることはありません。「高リスク」と「危険」の要求は、1.2 秒の長押しが必要です。
 
-## Release integrity
+**通信はこの Mac の中だけで完結します。** ネットワーク接続は一切せず、利用状況の収集もしません。要求はメモリにだけ保持します。
 
-Release builds are signed with the Developer ID of WANTO, K.K. (Team ID `588KRU9YN6`) and notarized by Apple. Each release lists the SHA-256 of its zip. To check a download:
+**デバッグログ。** `~/Library/Application Support/Grantch/debug-hook-log` を作ると、ブリッジは呼ばれるたびに、コマンドの内容やファイルのパスを含めて `~/Library/Application Support/Grantch/log/hook.log` に記録します（権限 `0600`、1 MB でリセット）。記録をやめるにはフラグのファイルを削除し、確認が終わったらログも削除してください。
+
+**インストーラ。** `grantch-config` は、自分が管理するフックの部分だけを編集します。既存のファイルは1回の実行につき1回、設定ファイルの隣に、自分だけが読める権限でバックアップします。設定ファイルにはトークンが含まれることがあるので、バックアップを Git などにコミットしないでください。
+
+## 配布物の確認
+
+リリース版のアプリと DMG は、どちらも WANTO, K.K.（Team ID `588KRU9YN6`）の Developer ID で署名し、Apple の公証を受けています。配布するバイナリにデバッグ情報は含みません。各リリースには、ファイルごとの SHA-256 を載せています。ダウンロードしたものは、次のように確認できます。
 
 ```sh
-shasum -a 256 -c Grantch-*-macos-universal.zip.sha256
-codesign -dv --verbose=2 /Applications/Grantch.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
-spctl --assess --type execute --verbose=2 /Applications/Grantch.app
+shasum -a 256 -c NyankoStamina-*-macos-universal.dmg.sha256
+spctl --assess --type open --context context:primary-signature --verbose=2 NyankoStamina-*-macos-universal.dmg
+codesign -dv --verbose=2 /Applications/NyankoStamina.app 2>&1 | grep -E 'Authority=Developer ID|TeamIdentifier'
+spctl --assess --type execute --verbose=2 /Applications/NyankoStamina.app
 ```
 
-`TeamIdentifier` must read `588KRU9YN6`, and `spctl` must report `source=Notarized Developer ID`.
+`TeamIdentifier` が `588KRU9YN6` で、`spctl` が `source=Notarized Developer ID` と表示すれば正しい配布物です。

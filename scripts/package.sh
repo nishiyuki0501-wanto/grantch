@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Builds a universal Grantch.app and a distributable zip in dist/.
+# Builds the universal app (にゃんこのスタミナ / Nyanko no Stamina) and a
+# distributable disk image and zip in dist/.
 #
-#   scripts/package.sh 0.1.0
+#   scripts/package.sh 0.2.0
 #
 # SIGN_IDENTITY   codesign identity. Defaults to "-" (ad-hoc, local use only).
 #                 Use a "Developer ID Application: ..." identity for releases.
-# NOTARY_PROFILE  notarytool keychain profile. When set, the app is notarized
-#                 and stapled; requires a Developer ID SIGN_IDENTITY.
+# NOTARY_PROFILE  notarytool keychain profile. When set, the app and the disk
+#                 image are notarized and stapled; requires a Developer ID
+#                 SIGN_IDENTITY.
 set -euo pipefail
 
 version="${1:-}"
@@ -24,8 +26,13 @@ fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 dist="$root/dist"
-app="$dist/Grantch.app"
-zip="$dist/Grantch-$version-macos-universal.zip"
+# The bundle's file name stays ASCII so the installer path is easy to type;
+# Finder shows the localized name from Localization/*.lproj/InfoPlist.strings.
+app_file="NyankoStamina"
+app="$dist/$app_file.app"
+artifact="$dist/$app_file-$version-macos-universal"
+zip="$artifact.zip"
+dmg="$artifact.dmg"
 bundle_id="com.wanto.grantch"
 
 echo "==> Building universal release binaries"
@@ -37,6 +44,7 @@ rm -rf "$dist"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/Grantch" "$bin/grantch-hook" "$bin/grantch-config" "$app/Contents/MacOS/"
 cp Assets/Grantch.icns LICENSE "$app/Contents/Resources/"
+cp -R Localization/ja.lproj Localization/en.lproj "$app/Contents/Resources/"
 # Debug symbols carry absolute build paths (and so the builder's home
 # directory and user name); release binaries ship without them.
 strip -S -x "$app/Contents/MacOS/Grantch" "$app/Contents/MacOS/grantch-hook" "$app/Contents/MacOS/grantch-config" 2>/dev/null
@@ -53,15 +61,17 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>ja</string>
-    <key>CFBundleDisplayName</key><string>Grantch</string>
+    <key>CFBundleDisplayName</key><string>$app_file</string>
     <key>CFBundleExecutable</key><string>Grantch</string>
     <key>CFBundleIconFile</key><string>Grantch</string>
     <key>CFBundleIdentifier</key><string>$bundle_id</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>CFBundleName</key><string>Grantch</string>
+    <key>CFBundleLocalizations</key><array><string>ja</string><string>en</string></array>
+    <key>CFBundleName</key><string>$app_file</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$version</string>
     <key>CFBundleVersion</key><string>$build_number</string>
+    <key>LSHasLocalizedDisplayName</key><true/>
     <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
     <key>LSMinimumSystemVersion</key><string>15.0</string>
     <key>LSUIElement</key><true/>
@@ -90,18 +100,10 @@ codesign --verify --strict --deep --verbose=2 "$app"
 archive() { ditto -c -k --norsrc --noextattr --keepParent "$1" "$2"; }
 
 if [[ -n "$notary_profile" ]]; then
-    echo "==> Notarizing (this can take a few minutes)"
+    echo "==> Notarizing the app (this can take a few minutes)"
     archive "$app" "$dist/notarize.zip"
-    result="$(xcrun notarytool submit "$dist/notarize.zip" --keychain-profile "$notary_profile" --wait --output-format json)" || true
+    NOTARY_PROFILE="$notary_profile" scripts/notarize.sh "$dist/notarize.zip"
     rm "$dist/notarize.zip"
-    submission_id="$(plutil -extract id raw -o - - <<<"$result" 2>/dev/null)" \
-        || { echo "Notarization submission failed: $result" >&2; exit 1; }
-    status="$(plutil -extract status raw -o - - <<<"$result" 2>/dev/null)" || status="unknown"
-    if [[ "$status" != "Accepted" ]]; then
-        echo "Notarization $status. Apple's log:" >&2
-        xcrun notarytool log "$submission_id" --keychain-profile "$notary_profile" >&2 || true
-        exit 1
-    fi
     xcrun stapler staple "$app"
     xcrun stapler validate "$app"
     spctl --assess --type execute --verbose=2 "$app"
@@ -111,3 +113,5 @@ echo "==> Creating $zip"
 archive "$app" "$zip"
 (cd "$dist" && shasum -a 256 "$(basename "$zip")" > "$(basename "$zip").sha256")
 cat "$zip.sha256"
+
+SIGN_IDENTITY="$identity" NOTARY_PROFILE="$notary_profile" scripts/make-dmg.sh "$app" "$version" "$dmg"

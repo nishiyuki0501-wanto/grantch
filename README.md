@@ -1,153 +1,177 @@
-# Grantch
+# にゃんこのスタミナ
 
-Grantch is a local-first macOS approval surface for AI coding agents. Claude Code and Codex CLI `PermissionRequest` events and Antigravity CLI `PreToolUse` events are forwarded through a user-only Unix socket and answered from a notch-aligned macOS panel.
+日本語 | [English](README.en.md)
 
-The interface is in Japanese. Requires macOS 15 or later.
+「にゃんこのスタミナ」は、AI コーディングエージェントの承認を macOS のノッチで行うアプリです。Claude Code と Codex CLI の `PermissionRequest`、Antigravity CLI の `PreToolUse` を、自分だけが使える Unix ソケット経由でノッチのパネルに表示し、そこで許可・拒否します。通信はすべてこの Mac の中で完結します。
 
-## Install
+画面は macOS の言語設定に合わせて日本語または英語で表示されます。macOS 15 以降が必要です。リポジトリ名、コマンド名、内部の識別子には、プロジェクト名の `grantch` を使っています。
 
-1. Download `Grantch-<version>-macos-universal.zip` from [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases), unzip it, and move `Grantch.app` to `/Applications`.
-2. Open Grantch. It lives in the notch and has no Dock icon.
-3. Install the CLI hooks:
+## インストール
+
+1. [Releases](https://github.com/nishiyuki0501-wanto/grantch/releases) から `NyankoStamina-<バージョン>-macos-universal.dmg` をダウンロードして開き、「にゃんこのスタミナ」を「アプリケーション」フォルダへドラッグします。同じ内容の zip もあります。
+2. 「にゃんこのスタミナ」を開きます。ノッチに常駐し、Dock には表示されません。
+3. CLI のフックをインストールします。
 
    ```sh
-   /Applications/Grantch.app/Contents/MacOS/grantch-config install
+   /Applications/NyankoStamina.app/Contents/MacOS/grantch-config install
    ```
 
-   The installer configures only the CLIs you have run at least once (`~/.claude`, `~/.codex`, `~/.gemini`). Run it again after installing another one.
+   一度でも起動したことのある CLI（`~/.claude`、`~/.codex`、`~/.gemini` がある CLI）だけを設定します。あとから CLI を追加したときは、もう一度実行してください。
 
-4. Restart running Claude Code, Codex CLI, and Antigravity CLI sessions. Codex asks you to review and trust the new hook on its next launch.
-5. Add Grantch to **System Settings → General → Login Items** so it is running after a restart. It does not add itself. While it is not running, Claude Code and Codex use their own prompts and Antigravity requests are denied.
+4. 起動中の Claude Code・Codex CLI・Antigravity CLI を再起動します。Codex は次回起動時に、追加したフックの確認と信頼を求めます。
+5. 再起動後も動くように、**システム設定 →「一般」→「ログイン項目」** に追加します。アプリが自分で追加することはありません。アプリが動いていない間は、Claude Code と Codex はそれぞれの通常の確認画面になり、Antigravity の要求は拒否されます。
 
-To update: quit Grantch (right-click the notch → `Grantch を終了`), replace `Grantch.app`, open it, run the install command again so the copied bridge matches the app, and restart the CLIs.
+更新するときは、ノッチを右クリック →「にゃんこのスタミナを終了」で終了し、アプリを置き換えて開きます。その後、もう一度 install を実行して、コピー済みのブリッジをアプリと同じ版にそろえ、CLI を再起動してください。0.1.0 を使っていた場合は、「アプリケーション」フォルダの `Grantch.app` も削除してください。
 
-Read [SECURITY.md](SECURITY.md) for what Grantch does and does not protect against.
+守れる範囲と守れない範囲は [SECURITY.md](SECURITY.md) にまとめています。必ず読んでください。
 
-## What works
+## できること
 
-- Native SwiftUI/AppKit `NSPanel` that stays visible across Spaces and full-screen apps
-- Notch-aware hover target that extends beyond the physical cutout, expands for easier clicking, and can be pinned open with one click
-- Original voxel-inspired block pattern with risk-colored tiles and pixel status indicators
-- Claude Code and Codex CLI `PermissionRequest` normalization
-- Antigravity CLI (`agy`) command/file-change approval via its camelCase `PreToolUse` contract; allow or deny, with Grantch as the only gate when `agy` runs with `--dangerously-skip-permissions`
-- Terminal-result, tool-completion, session-end, disconnect, and parent-exit reconciliation
-- Live approval queue showing the source CLI, project, command, and risk for up to three pending requests. Shell tools show their command, with markers for a disabled sandbox, escalated permissions, or a different working directory; known built-in file, web, and search tools show their name and target; every other tool, including MCP tools, shows its whole input. The agent's own description is never shown in place of the input, only in the hover text, labeled as such
-- Line breaks, control characters, bidirectional and invisible characters, and unusual spaces are shown as visible markers, and long runs of spaces are counted, so nothing in a command can be hidden
-- Decision buttons that ignore clicks for half a second after a request appears or moves, so a stray click cannot approve it
-- Allow once, deny, deny-and-stop (Claude Code), and allow for the session when Claude Code suggests a rule; the button shows the exact rule it grants, such as `Bash(git:*)`
-- Unattended auto-approval for stepping away: 15 minutes, 1 hour, or 3 hours from the notch panel or its context menu, applying to every CLI Grantch gates
-- Local rule-based risk labels for destructive shell, Git, database, credential, deploy, and network operations, piping or downloading into a shell, and edits to agent, hook, SSH, Git hook, or shell startup files; hover over the label for the reasons
-- Five-minute expiry, after which the request goes back to the CLI, and first-decision-wins semantics
-- A red `ERROR` badge when the socket cannot be opened, instead of an idle-looking notch
-- Fail-safe fallback: if Grantch is unavailable or the bridge rejects input, Claude Code and Codex fall back to their native permission UI, and Antigravity requests are denied (it has no prompt left to fall back to under `--dangerously-skip-permissions`)
-- Socket at `~/Library/Application Support/Grantch/run/grantch.sock`, with directory mode `0700` and socket mode `0600`
+- ノッチ位置に表示されるネイティブの SwiftUI/AppKit パネル。操作スペースを切り替えても、フルスクリーンでも表示されます
+- ノッチより少し広い範囲にマウスを乗せると広がり、クリックで開いたまま固定できます
+- 危険度ごとに色が変わる、オリジナルのボクセル風デザイン
+- Claude Code と Codex CLI の `PermissionRequest` に対応
+- Antigravity CLI（`agy`）のコマンド実行とファイル変更の承認。`--dangerously-skip-permissions` で起動すると、このアプリだけが確認窓口になります
+- ターミナルでの回答、ツールの完了、セッション終了、接続の切断、親プロセスの終了を検知して、表示を自動で片付けます
+- 承認待ちを最大3件まで並べて表示します（どの CLI か、プロジェクト、コマンド、危険度）
+  - シェル系のツールは、実行するコマンドそのものを表示します。サンドボックスの無効化、権限の昇格、作業ディレクトリの指定があれば、目印を付けます
+  - ファイル・Web・検索などの既知のツールは、ツール名と対象を表示します
+  - MCP ツールを含むそれ以外のツールは、入力の全体を表示します
+  - エージェントが書いた説明文は、実際の入力の代わりには使いません。ホバー時に「エージェントの説明」と明記して表示するだけです
+- 改行、制御文字、表示の向きを変える文字、目に見えない文字、通常と異なる空白は、目に見える記号で表示します。長く続く空白は数で表示するので、コマンドの一部を隠すことはできません
+- 承認要求が表示された直後と、行が繰り上がった直後の 0.5 秒間はボタンが反応しません。別の場所を狙ったクリックで許可されることを防ぎます
+- 「許可」「拒否」「停止」（拒否して作業も中断。Claude Code のみ）、「セッション中」（Claude Code がルールを提案したとき）。「セッション中」のボタンには、許可されるルール（例: `Bash(git:*)`）がそのまま表示されます
+- 席を外すときの自動承認（15分・1時間・3時間）。パネルまたは右クリックメニューから、すべての CLI に対して使えます
+- 危険度の判定はこの Mac の中で行います。対象は、破壊的なシェル操作、Git、データベース、認証情報、デプロイ、ネットワーク、シェルへの流し込みやダウンロードしての実行、エージェント・フック・SSH・Git フック・シェル起動ファイルの変更です。ラベルにマウスを乗せると理由が出ます
+- 5分で期限切れになり、要求は CLI に返されます。決定は最初の1回だけが有効です
+- ソケットを開けなかったときは、待機中に見えないよう赤い `ERROR` 表示を出します
+- アプリが使えない、またはブリッジが入力を受け付けないときは安全側に倒します。Claude Code と Codex はそれぞれの通常の確認画面に戻り、Antigravity は拒否されます（`--dangerously-skip-permissions` のもとでは、ほかに確認する手段がないため）
+- ソケットは `~/Library/Application Support/Grantch/run/grantch.sock` です。ディレクトリの権限は `0700`、ソケットの権限は `0600` です
 
-Not implemented: Cursor support, persistence, a hook installation UI, Touch ID, terminal focus, and launch at login.
+未対応のもの: Cursor、承認内容の保存、フックをインストールする画面、Touch ID、ターミナルの前面表示、ログイン時の自動起動。
 
-## Auto-approval
+## 自動承認
 
-Pin the notch open (or right-click it) and choose `自動承認` with a duration to answer every request with allow-once until the timer runs out. It covers all three CLIs, so it is the equivalent of running each of them without permission prompts, and it applies to destructive operations too: high and critical risk requests are approved like any other. The notch wears a red `AUTO` badge with the remaining time and count while the mode is on, and the panel offers `+15分` and `オフ`. The panel lists what was let through. The record stays after the window ends so the run can be read back, until the next window starts or you press `消去`. The total is always counted; the 30 most recent entries are kept and the latest four shown.
+ノッチを固定表示にする（または右クリックする）と「自動承認」を選べます。時間を選ぶと、期限まですべての要求に「今回のみ許可」で答えます。3つの CLI すべてが対象なので、各 CLI を確認なしで動かしているのと同じ状態になります。危険度が「高リスク」「危険」の要求も、ほかと同じように許可されます。
 
-The window is in-memory only. Quitting or restarting Grantch always returns to the normal asking state and clears the record.
+自動承認中は、ノッチに赤い `AUTO` 表示が出て、残り時間と件数が分かります。パネルからは「+15分」と「オフ」を選べます。パネルには許可した内容の一覧が表示されます。この一覧は自動承認が終わった後も残り、次の自動承認を始めるか「消去」を押すまで読み返せます。件数はすべて数え、内容は直近30件を保持し、最新4件を表示します。
 
-## Build from source
+自動承認の状態はメモリにだけ持ちます。アプリを終了・再起動すると必ず通常の確認状態に戻り、一覧も消えます。
+
+## ソースからビルド
 
 ```sh
 swift build
 swift run Grantch
 ```
 
-The built bridge is `.build/debug/grantch-hook`. Install it and merge the Hook configuration safely with:
+`swift run` では日本語で表示されます。英語の翻訳と、言語に合わせたアプリ名は、`scripts/package.sh` でアプリにまとめるときに追加されます。
+
+ビルドしたブリッジは `.build/debug/grantch-hook` です。次のコマンドで、フックの設定を安全に追加できます。
 
 ```sh
 swift run grantch-config install .build/debug/grantch-hook
 ```
 
-The installer adds Grantch handlers to `~/.claude/settings.json`, `~/.codex/hooks.json`, and `~/.gemini/config/hooks.json`, for the CLIs whose directory exists. Claude/Codex use permission and completion/session-end handlers; Antigravity uses a named `grantch-approval` PreToolUse hook. It does not overwrite other hooks, writes through symlinked settings files, and keeps each file's permissions. Before its first change to a file in a run it saves a private (`0600`) timestamped backup beside the settings path. The file is rewritten as pretty-printed JSON with sorted keys. Restart the CLI after installation. Codex validates newly added local hooks, so review and trust Grantch when Codex asks on the next normal launch.
+インストーラは、ディレクトリがある CLI についてだけ、`~/.claude/settings.json`、`~/.codex/hooks.json`、`~/.gemini/config/hooks.json` に設定を追加します。Claude と Codex には、承認と完了・セッション終了のフックを入れます。Antigravity には `grantch-approval` という名前の PreToolUse フックを入れます。
 
-To remove only the matching Grantch handler:
+- ほかのフックは上書きしません
+- シンボリックリンクになっている設定ファイルは、リンク先に書き込みます
+- ファイルの権限はそのまま保ちます
+- 既存のファイルを変更する前に、1回の実行につき1回、タイムスタンプ付きのバックアップを設定ファイルの隣に作ります。バックアップは自分だけが読める `0600` です
+- 設定ファイルは、キーを並べ替えた整形済みの JSON で書き直されます
+- メッセージは macOS の言語設定に合わせて表示されます。`GRANTCH_LANG=ja` または `GRANTCH_LANG=en` で切り替えられます
+
+インストール後は CLI を再起動してください。Codex は新しく追加されたローカルのフックを検証するので、次回の通常起動時に求められたら確認して信頼してください。
+
+追加した設定だけを取り除くには、次を実行します。
 
 ```sh
 swift run grantch-config uninstall
 ```
 
-## Manual bridge check
+## ブリッジの手動確認
 
-With Grantch running:
+アプリを起動した状態で、次を実行します。
 
 ```sh
 echo '{"session_id":"demo","cwd":"/tmp/grantch-demo","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"npm test"}}' | .build/debug/grantch-hook
 ```
 
-Choosing an action in the panel prints the CLI's structured Hook response. With Grantch stopped, the same command prints `{}`, confirming native-approval fallback. The Antigravity bridge is separate; with Grantch stopped it prints an explicit denial instead:
+パネルで操作を選ぶと、CLI 向けの応答が表示されます。アプリを止めた状態では、同じコマンドが `{}` を出力し、通常の確認画面に戻ることを確認できます。Antigravity 用のブリッジは別で、アプリを止めた状態では明示的な拒否を出力します。
 
 ```sh
 echo '{"conversationId":"demo","workspacePaths":["/tmp/grantch-demo"],"stepIdx":1,"toolCall":{"name":"run_command","args":{"CommandLine":"npm test","Cwd":"/tmp/grantch-demo"}}}' | .build/debug/grantch-hook --source antigravity
 ```
 
-## Tests
+## テスト
 
 ```sh
 swift test
-```
-
-The current Hook contracts are documented in the official [Claude Code Hooks reference](https://code.claude.com/docs/en/hooks#permissionrequest-decision-control) and [Codex configuration schema](https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json).
-
-## Antigravity and terminal synchronization
-
-Antigravity exposes synchronous `PreToolUse`, not a dedicated permission-request event. Grantch therefore gates `run_command`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, and `ask_permission`, including operations Antigravity might otherwise allow automatically. Other tools, such as `view_file`, `read_url_content`, `manage_task`, subagents, and MCP tools, are not gated. It does not mirror an already-open Antigravity permission dialog.
-
-Releasing the pre-tool gate is not the same as granting permission. On `agy 1.2.5`, a `decision: allow` response lets the step past the hook, and Antigravity then evaluates its own permission rules (`permissions.allow` in `~/.gemini/antigravity-cli/settings.json`, plus per-conversation grants) and stops on `Run this command?` in the terminal. No hook response field closes that gap: `permissionOverrides` replaces the resource string the CLI asks about rather than granting it, so `["command(echo)"]` only rewrites the prompt.
-
-Start Antigravity as `agy --dangerously-skip-permissions` to let Grantch be the approval surface. Hooks still run under that flag and remain authoritative, so a Grantch denial blocks the step. Because the flag removes the terminal prompt, Grantch fails closed for Antigravity: an expired, cancelled, or undecidable request answers `decision: deny` rather than handing back. An empty `{}` response is read as a denial by Antigravity too, so it is never used there.
-
-The shared `~/.gemini/config/hooks.json` customization location is also loaded by other Antigravity interfaces, so the deny-when-undecided rule applies there too.
-
-Claude terminal hook decisions and correlated tool results dismiss the queue. Claude/Codex completion and session lifecycle hooks provide a second cleanup path; completion notifications never return an approval. Matching uses session, turn, and tool-call identifiers when available. A command-only match is accepted only for a single pending candidate. Hook disconnect, parent exit, and expiry also remove stale requests. If a CLI keeps its hook alive and emits no decision event, cleanup occurs when the tool result/completion is available rather than necessarily at the exact terminal keypress.
-
-After installation, restart existing CLI sessions so they load the added hooks. The app and bridge must both be updated. Installer regression checks can run without touching your real settings:
-
-```sh
 swift build -c release
 python3 Tests/Integration/config_test.py
+python3 Tests/Integration/localization_test.py
 ```
 
-`GRANTCH_CONFIG_HOME` overrides the installer's home directory for isolated tests. Antigravity's contract is described in its [official Hooks documentation](https://www.agy.dev/docs/hooks/).
+インストーラのテストは、分離したホームディレクトリ（`GRANTCH_CONFIG_HOME`）で動くので、実際の設定には触れません。翻訳のテストは、画面のすべての日本語に、書式指定の合った英語訳があることを確認します。
 
-## Debug log
+フックの仕様は、公式の [Claude Code Hooks リファレンス](https://code.claude.com/docs/en/hooks#permissionrequest-decision-control)、[Codex の設定スキーマ](https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json)、Antigravity の [Hooks ドキュメント](https://www.agy.dev/docs/hooks/) にあります。
 
-If Grantch does not appear for a request, first check whether the CLI called the hook at all:
+## Antigravity とターミナルとの連携
+
+Antigravity には承認専用のイベントがなく、同期的な `PreToolUse` だけがあります。そのため、このアプリは `run_command`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`ask_permission` を確認対象にしています。Antigravity が自動で許可する操作も含みます。一方、`view_file`、`read_url_content`、`manage_task`、サブエージェント、MCP ツールなどは確認しません。また、Antigravity で既に開いている確認ダイアログを表示することもできません。
+
+フックで通すことと、権限を与えることは別です。`agy 1.2.5` では、`decision: allow` を返すとフックは通過しますが、その後 Antigravity は自身の権限ルール（`~/.gemini/antigravity-cli/settings.json` の `permissions.allow` と会話ごとの許可）を評価し、ターミナルで `Run this command?` と確認して止まります。フックの応答でこれを解消する方法はありません。`permissionOverrides` は確認対象の文字列を置き換えるだけで、許可はしません。`["command(echo)"]` を返しても、確認の文言が変わるだけです。
+
+このアプリを確認窓口にするには、Antigravity を `agy --dangerously-skip-permissions` で起動します。このオプションでもフックは実行され、その判断が優先されるので、拒否すれば処理は止まります。ターミナルでの確認がなくなるため、Antigravity については安全側に倒し、期限切れ・取り消し・判断できなかった要求には `decision: deny` を返します。Antigravity は空の `{}` も拒否として扱うので、`{}` は使いません。
+
+共有の `~/.gemini/config/hooks.json` は Antigravity の他の画面からも読み込まれるので、判断できないときは拒否するという動作がそちらにも適用されます。
+
+Claude のターミナルでのフック判断と、対応するツールの実行結果が出ると、承認待ちから消えます。Claude と Codex の完了イベントとセッションのライフサイクルイベントも、片付けのきっかけになります。完了の通知が承認として扱われることはありません。照合には、セッション・ターン・ツール呼び出しの ID を、ある場合は使います。コマンドの一致だけで照合するのは、候補が1件しかないときに限ります。フックとの接続が切れたとき、親プロセスが終了したとき、期限が切れたときも、古い要求は消えます。CLI がフックを動かしたまま判断のイベントを出さない場合は、ターミナルで回答した瞬間ではなく、ツールの結果や完了が届いた時点で片付きます。
+
+## デバッグログ
+
+要求が表示されないときは、まず CLI がフックを呼んだかどうかを確認します。
 
 ```sh
 touch ~/Library/Application\ Support/Grantch/debug-hook-log
 ```
 
-The bridge then appends each invocation to `~/Library/Application Support/Grantch/log/hook.log`. The log contains command text and file paths, so remove the flag file and the log when you are done.
+この操作の後は、ブリッジが呼ばれるたびに `~/Library/Application Support/Grantch/log/hook.log` に記録されます。ログにはコマンドの内容やファイルのパスが含まれるので、確認が終わったらフラグのファイルとログを削除してください。
 
-## Uninstall
-
-```sh
-/Applications/Grantch.app/Contents/MacOS/grantch-config uninstall
-```
-
-This removes only Grantch's handlers and the copied bridge. Then quit Grantch (right-click the notch → `Grantch を終了`), delete `Grantch.app`, remove it from Login Items, and optionally delete `~/Library/Application Support/Grantch`. Backups the installer made sit next to each settings file as `*.grantch-backup-*`. Codex identifies trusted hooks partly by position, so hooks you added after Grantch's in `~/.codex/hooks.json` may need to be trusted again.
-
-## Releasing
-
-Releases are built locally, signed with a Developer ID, notarized, and uploaded as a draft GitHub release. One-time setup stores notarization credentials in the keychain:
+## アンインストール
 
 ```sh
-xcrun notarytool store-credentials grantch-notary --apple-id <apple-id> --team-id <team-id>
+/Applications/NyankoStamina.app/Contents/MacOS/grantch-config uninstall
 ```
 
-For each release, add a `## [x.y.z] - YYYY-MM-DD` section to [CHANGELOG.md](CHANGELOG.md), push `main`, then run:
+このコマンドが取り除くのは、追加したフックとコピーしたブリッジだけです。その後、ノッチを右クリック →「にゃんこのスタミナを終了」で終了します。アプリを「アプリケーション」フォルダから削除し、ログイン項目からも外してください。必要なら `~/Library/Application Support/Grantch` も削除します。
+
+インストーラが作ったバックアップは、各設定ファイルの隣に `*.grantch-backup-*` という名前で残っています。Codex は信頼したフックを順番も含めて識別するので、`~/.codex/hooks.json` でこのアプリの後に追加したフックは、もう一度信頼が必要になることがあります。
+
+## リリース手順
+
+リリースはこの Mac でビルドし、Developer ID で署名して公証を受け、DMG と zip を付けた GitHub リリースの下書きとしてアップロードします。最初に一度だけ、公証用の認証情報をキーチェーンに保存します。
 
 ```sh
-SIGN_IDENTITY="Developer ID Application: <name> (<team-id>)" NOTARY_PROFILE=grantch-notary scripts/release.sh x.y.z
+xcrun notarytool store-credentials grantch-notary --apple-id <Apple ID> --team-id <Team ID>
 ```
 
-The script refuses to run on a dirty or unpushed tree, runs the tests, builds a universal app, signs, notarizes, staples, and creates a draft release with the zip and its SHA-256. Publishing the draft on GitHub creates the `vx.y.z` tag. `scripts/package.sh x.y.z` alone builds an ad-hoc signed app for local testing.
+リリースのたびに、[CHANGELOG.md](CHANGELOG.md) と [CHANGELOG.en.md](CHANGELOG.en.md) の両方に `## [x.y.z] - YYYY-MM-DD` の項目を追加し、`main` を push してから次を実行します。
 
-## License
+```sh
+SIGN_IDENTITY="Developer ID Application: <名前> (<Team ID>)" NOTARY_PROFILE=grantch-notary scripts/release.sh x.y.z
+```
+
+このスクリプトは次の順に処理します。未コミットの変更がある、または push していない状態では実行を止めます。
+
+1. テストを実行する
+2. Intel と Apple シリコンの両対応版をビルドし、デバッグ情報を取り除く
+3. アプリと DMG に署名し、公証を受け、結果を添付する
+4. 両方のファイルと SHA-256 を付けて、リリースの下書きを作る
+
+下書きを GitHub で公開すると `vx.y.z` タグが作られます。`scripts/package.sh x.y.z` だけを実行すると、手元での確認用に、簡易署名のアプリ・DMG・zip を作ります。
+
+## ライセンス
 
 [MIT](LICENSE)

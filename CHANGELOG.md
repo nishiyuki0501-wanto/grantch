@@ -1,30 +1,51 @@
-# Changelog
+# 変更履歴
 
-All notable changes to Grantch are recorded here. Versions follow [Semantic Versioning](https://semver.org/).
+日本語 | [English](CHANGELOG.en.md)
+
+主な変更をここに記録します。バージョン番号は [セマンティック バージョニング](https://semver.org/lang/ja/) に従います。
+
+## [0.2.0] - 2026-10-02
+
+### 変更
+
+- アプリ名を「にゃんこのスタミナ」（英語環境では Nyanko no Stamina）にしました。アプリのファイル名は `NyankoStamina.app` です。リポジトリ、`grantch-hook` と `grantch-config`、ソケット、設定の場所は、プロジェクト名の `grantch` のままです。0.1.0 を使っていた場合は、`Grantch.app` を削除してから、もう一度 install を実行してください。
+- すべて日本語を基本にし、英語でも使えるようにしました。
+  - 画面、危険度の理由、アプリ名は、macOS の言語設定に合わせて表示されます
+  - `grantch-config` のメッセージは日本語か英語で表示されます（`GRANTCH_LANG` で切り替えられます）
+  - ドキュメントは日本語を基本にし、英語版も用意しました
+- Claude Code と Codex が承認待ちの間に表示するメッセージは、インストーラの言語で書き込みます。
+
+### 追加
+
+- zip に加えて、署名・公証済みの DMG を用意しました。「アプリケーション」フォルダへのリンクが入っています。
+
+### 修正
+
+- インストーラが、同じ実行の中で自分で作った設定ファイルをバックアップしないようにしました。
 
 ## [0.1.0] - 2026-10-02
 
-First public release.
+最初の公開リリースです。当時のアプリ名は Grantch でした。
 
-### Added
+### 追加
 
-- Notch-aligned approval panel for Claude Code and Codex CLI `PermissionRequest` hooks and Antigravity CLI `PreToolUse` hooks.
-- Allow once, deny, deny-and-stop (Claude Code), and allow for the session with the granted rule shown (Claude Code).
-- Rule-based risk labels with their reasons on hover; high and critical requests need a press-and-hold to approve.
-- Timed auto-approval (15 minutes, 1 hour, 3 hours) with a record of what was let through that stays after the window ends.
-- `grantch-config` installer that configures only CLIs that are present, merges hooks without touching other handlers, keeps file permissions and symlinks, and backs up each file once per run.
-- `Grantch を終了` in the notch's context menu, and a red `ERROR` badge when the socket cannot be opened.
-- Signed and notarized universal (Apple silicon and Intel) app bundle.
+- Claude Code と Codex CLI の `PermissionRequest` フック、Antigravity CLI の `PreToolUse` フックに対応する、ノッチ位置の承認パネル。
+- 「今回のみ許可」「拒否」「停止」（Claude Code）、許可されるルールを表示する「セッション中」（Claude Code）。
+- ルールに基づく危険度のラベル。理由はマウスを乗せると表示されます。「高リスク」と「危険」は長押ししないと許可できません。
+- 時間を区切った自動承認（15分・1時間・3時間）。許可した内容の一覧は、終了後も残ります。
+- `grantch-config` インストーラ。インストール済みの CLI だけを設定し、ほかのフックには触れずに追加します。ファイルの権限とシンボリックリンクを保ち、各ファイルを1回の実行につき1回バックアップします。
+- ノッチの右クリックメニューに終了の項目を追加。ソケットを開けないときは赤い `ERROR` 表示を出します。
+- 署名・公証済みのユニバーサル版（Apple シリコンと Intel）のアプリ。
 
-### Security
+### セキュリティ
 
-- Known built-in tools show their name and target (for example `Write /path/to/.env`); MCP and other tools show their whole input; shell commands are marked for a disabled sandbox, escalation, or a working directory. The agent's description is never shown in place of the input. Risk labels are computed from the same text.
-- Line and paragraph separators, control characters, bidirectional and invisible characters, and non-ASCII spaces are shown as visible markers, and long runs of spaces are counted.
-- Risk labels catch `rm` however it is written, piping or downloading into a shell, and edits to agent, hook, Git hook, SSH, and shell startup files.
-- Tool input nested more than 64 levels deep is rejected instead of crashing the app.
-- Session approval is offered only for Claude Code `addRules` suggestions.
-- Decision buttons ignore clicks for 0.5 seconds after a request appears or moves.
-- The socket server rejects peers running as another user, reused request IDs, and peers that stall mid-message, and closes sockets only after their dispatch source is cancelled.
-- Unanswered requests go back to the CLI after five minutes instead of being reported as denied by the user.
-- Claude Code `Stop` no longer dismisses requests from background subagents.
-- The opt-in debug log and installer backups are created readable by the user only.
+- 既知の組み込みツールはツール名と対象を表示し（例: `Write /path/to/.env`）、MCP など他のツールは入力の全体を表示します。シェルのコマンドには、サンドボックスの無効化、権限の昇格、作業ディレクトリの指定があれば目印を付けます。エージェントの説明文を、実際の入力の代わりに表示することはありません。危険度は、表示と同じ文字列から判定します。
+- 行区切り、段落区切り、制御文字、表示の向きを変える文字、目に見えない文字、ASCII 以外の空白を、目に見える記号で表示します。長く続く空白は数で表示します。
+- 危険度の判定で、書き方の違う `rm`、シェルへの流し込みやダウンロードしての実行、エージェント・フック・Git フック・SSH・シェル起動ファイルの変更を検出します。
+- 64段より深く入れ子になったツール入力は、アプリを落とさずに拒否します。
+- 「セッション中」は、Claude Code の `addRules` の提案のときだけ表示します。
+- 承認要求が表示された直後と、行が繰り上がった直後の 0.5 秒間は、ボタンが反応しません。
+- ソケットのサーバは、別ユーザーからの接続、ID の再利用、送信途中で止まった接続を拒否します。ソケットは、ディスパッチソースを取り消した後にだけ閉じます。
+- 5分間回答がなかった要求は、「ユーザーが拒否した」と伝えるのではなく、CLI に返します。
+- Claude Code の `Stop` で、裏で動くサブエージェントの承認待ちが消えないようにしました。
+- オプトインのデバッグログと、インストーラのバックアップは、自分だけが読める権限で作ります。

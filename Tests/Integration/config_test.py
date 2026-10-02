@@ -11,8 +11,8 @@ config = root / '.build/release/grantch-config'
 bridge = root / '.build/release/grantch-hook'
 
 
-def run(home, *args):
-    env = dict(os.environ, GRANTCH_CONFIG_HOME=str(home))
+def run(home, *args, lang='en'):
+    env = dict(os.environ, GRANTCH_CONFIG_HOME=str(home), GRANTCH_LANG=lang)
     return subprocess.run([str(config), *args], env=env, check=True, capture_output=True, text=True)
 
 
@@ -81,9 +81,18 @@ with tempfile.TemporaryDirectory(prefix='grantch-config-') as directory:
     assert not (home / 'shared').exists(), 'relative link resolved from the wrong directory'
 
 with tempfile.TemporaryDirectory(prefix='grantch-config-') as directory:
-    env = dict(os.environ, GRANTCH_CONFIG_HOME=directory)
-    result = subprocess.run([str(config), 'install', str(bridge)], env=env, capture_output=True, text=True)
-    assert result.returncode != 0 and 'No ~/.claude' in result.stderr
+    for lang, expected in [('en', 'No ~/.claude'), ('ja', 'のどれも見つかりません')]:
+        env = dict(os.environ, GRANTCH_CONFIG_HOME=directory, GRANTCH_LANG=lang)
+        result = subprocess.run([str(config), 'install', str(bridge)], env=env, capture_output=True, text=True)
+        assert result.returncode != 0 and expected in result.stderr, result.stderr
+
+with tempfile.TemporaryDirectory(prefix='grantch-config-') as directory:
+    home = Path(directory)
+    (home / '.claude').mkdir()
+    output = run(home, 'install', str(bridge), lang='ja').stdout
+    assert 'Claude Code の承認フックをインストールしました' in output, output
+    status = json.loads((home / '.claude/settings.json').read_text())['hooks']['PermissionRequest'][0]['hooks'][0]['statusMessage']
+    assert status == 'にゃんこのスタミナで承認待ち', status
 
 print('PASS: installer idempotence, exact uninstall, private backups beside links, modes kept, '
-      'symlinks (including dangling) kept, absent CLIs skipped')
+      'symlinks (including dangling) kept, absent CLIs skipped, Japanese and English messages')

@@ -3,6 +3,16 @@ import Combine
 import GrantchCore
 import SwiftUI
 
+/// Japanese is the base language: keys are the Japanese text, and
+/// `en.lproj/Localizable.strings` in the app bundle supplies English. Outside
+/// the bundle (`swift run`) the Japanese keys are shown as they are.
+func L(_ key: String, _ arguments: CVarArg...) -> String {
+    let format = Bundle.main.localizedString(forKey: key, value: key, table: nil)
+    return arguments.isEmpty ? format : String(format: format, locale: .current, arguments: arguments)
+}
+
+let appName = L("にゃんこのスタミナ")
+
 /// One request that auto-approval let through, kept so the user can read back
 /// what ran while they were away.
 struct AutoApprovedRecord: Identifiable, Equatable {
@@ -257,10 +267,10 @@ extension RiskLevel {
 
     var interfaceLabel: String {
         switch self {
-        case .low: "低リスク"
-        case .medium: "注意"
-        case .high: "高リスク"
-        case .critical: "危険"
+        case .low: L("低リスク")
+        case .medium: L("注意")
+        case .high: L("高リスク")
+        case .critical: L("危険")
         }
     }
 }
@@ -275,10 +285,10 @@ enum InterfaceTheme: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .sage: "セージ"
-        case .blue: "ブルー"
-        case .violet: "バイオレット"
-        case .sand: "サンド"
+        case .sage: L("セージ")
+        case .blue: L("ブルー")
+        case .violet: L("バイオレット")
+        case .sand: L("サンド")
         }
     }
 
@@ -305,12 +315,12 @@ struct ApprovalQueueView: View {
     var body: some View {
         VStack(spacing: 7) {
             HStack(spacing: 8) {
-                Text("承認確認").font(.system(size: 14, weight: .black, design: .monospaced))
+                Text(L("承認確認")).font(.system(size: 14, weight: .black, design: .monospaced))
                 PixelWalker(tint: accent)
                     .frame(width: 40, height: 23)
                 Spacer()
                 if requests.count > 1 {
-                    Text("\(requests.count)件")
+                    Text(L("%ld件", requests.count))
                         .font(.system(size: 11, weight: .black, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.5))
                 }
@@ -321,7 +331,7 @@ struct ApprovalQueueView: View {
             }
 
             if requests.count > 3 {
-                Text("ほか \(requests.count - 3)件の承認待ち")
+                Text(L("ほか %ld件の承認待ち", requests.count - 3))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -370,7 +380,7 @@ struct ApprovalQueueRow: View {
                 Text(agentName).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.white.opacity(0.38))
                 Spacer()
                 VoxelRiskBadge(label: request.risk.interfaceLabel, tint: accent)
-                    .help(request.riskReasons.joined(separator: "\n"))
+                    .help(request.riskReasons.map { L($0) }.joined(separator: "\n"))
             }
             HStack(spacing: 8) {
                 Text(ToolSummary.displayLine(request.command))
@@ -383,25 +393,25 @@ struct ApprovalQueueRow: View {
                     .help(commandHelp)
                 Spacer(minLength: 6)
                 Group {
-                    Button("拒否") { decide(.deny) }
-                        .help("この操作を実行させません")
+                    Button(L("拒否")) { decide(.deny) }
+                        .help(L("この操作を実行させません"))
                     if request.agent == "claude-code" {
-                        Button("停止") { decide(.denyAndStop) }
+                        Button(L("停止")) { decide(.denyAndStop) }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .subtle))
-                            .help("拒否して、エージェントの作業も中断します")
+                            .help(L("拒否して、エージェントの作業も中断します"))
                     }
                     if request.risk == .low || request.risk == .medium {
                         // Claude Code's suggestion is often broader than this
                         // call (`Bash(git:*)`), so the button names the rule.
                         if let rules = request.sessionSuggestion?.rules {
                             Button { decide(.allowSession) } label: {
-                                Text("セッション: \(ToolSummary.displayLine(rules))")
+                                Text(L("セッション: %@", ToolSummary.displayLine(rules)))
                                     .lineLimit(1).truncationMode(.middle)
                                     .frame(maxWidth: 150)
                             }
-                            .help("このセッションのあいだ、\(ToolSummary.displayLine(rules)) に当てはまる操作を確認なしで許可します")
+                            .help(L("このセッションのあいだ、%@ に当てはまる操作を確認なしで許可します", ToolSummary.displayLine(rules)))
                         }
-                        Button("許可") { decide(.allowOnce) }
+                        Button(L("許可")) { decide(.allowOnce) }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .primary))
                             .help(approvalHelp)
                     } else {
@@ -438,13 +448,13 @@ struct ApprovalQueueRow: View {
     private var commandHelp: String {
         var help = ToolSummary.displayLine(request.command)
         if let detail = request.detail, !detail.isEmpty {
-            help += "\n\nエージェントの説明: " + ToolSummary.displayLine(detail)
+            help += "\n\n" + L("エージェントの説明: %@", ToolSummary.displayLine(detail))
         }
         return help
     }
 
     private var approvalHelp: String {
-        "今回の操作だけを許可します"
+        L("今回の操作だけを許可します")
     }
 }
 
@@ -479,8 +489,8 @@ struct IdleNotchView: View {
         store.isAutoApproving || store.serverError != nil ? RiskLevel.critical.interfaceColor : idleAccent
     }
     private var statusTitle: String {
-        if store.serverError != nil { return "停止中" }
-        return store.isAutoApproving ? "自動承認中" : "承認待ちなし"
+        if store.serverError != nil { return L("停止中") }
+        return store.isAutoApproving ? L("自動承認中") : L("承認待ちなし")
     }
 
     var body: some View {
@@ -499,7 +509,7 @@ struct IdleNotchView: View {
                                     .foregroundStyle(statusAccent)
                             }
                             if let error = store.serverError {
-                                Text("承認要求を受け取れません: \(error)\nClaude Code と Codex は通常の確認に戻り、Antigravity は拒否されます。")
+                                Text(L("承認要求を受け取れません: %@\nClaude Code と Codex は通常の確認に戻り、Antigravity は拒否されます。", error))
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.white.opacity(0.8))
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -555,7 +565,7 @@ struct IdleNotchView: View {
                         AutoApproveBadge(store: store)
                     } else if let error = store.serverError {
                         StatusBadge(text: "ERROR")
-                            .help("Grantch は承認要求を受け取れません: \(error)")
+                            .help(L("%@ は承認要求を受け取れません: %@", appName, error))
                     }
                 }
                 .frame(width: hoverWidth, height: 42, alignment: .bottom)
@@ -571,10 +581,10 @@ struct IdleNotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .contextMenu {
             if store.isAutoApproving {
-                Button("自動承認をオフにする") { store.stopAutoApproving() }
+                Button(L("自動承認をオフにする")) { store.stopAutoApproving() }
             } else {
                 ForEach(autoApproveDurations, id: \.label) { duration in
-                    Button("自動承認 \(duration.label)") { store.startAutoApproving(for: duration.seconds) }
+                    Button(L("自動承認 %@", L(duration.label))) { store.startAutoApproving(for: duration.seconds) }
                 }
             }
             Divider()
@@ -586,14 +596,14 @@ struct IdleNotchView: View {
                 }
             }
             Divider()
-            Button("Grantch を終了") { NSApp.terminate(nil) }
+            Button(L("%@を終了", appName)) { NSApp.terminate(nil) }
         }
         .animation(.spring(response: 0.22, dampingFraction: 0.72), value: isHovered)
         .animation(.snappy(duration: 0.18), value: isPinnedOpen)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(store.serverError != nil ? "Grantch、停止中" : store.isAutoApproving ? "Grantch、自動承認中" : "Grantch、監視中")
-        .accessibilityHint(isPinnedOpen ? "クリックするとピン留めを解除します" : "クリックすると承認待ち表示を固定します")
+        .accessibilityLabel(store.serverError != nil ? L("%@、停止中", appName) : store.isAutoApproving ? L("%@、自動承認中", appName) : L("%@、監視中", appName))
+        .accessibilityHint(isPinnedOpen ? L("クリックするとピン留めを解除します") : L("クリックすると承認待ち表示を固定します"))
     }
 }
 
@@ -606,11 +616,11 @@ struct AutoApproveBadge: View {
                 text: "AUTO",
                 detail: [
                     store.autoApproveUntil.map { autoApproveCountdown(until: $0, now: timeline.date) },
-                    store.autoApprovedCount > 0 ? "\(store.autoApprovedCount)件" : nil
+                    store.autoApprovedCount > 0 ? L("%ld件", store.autoApprovedCount) : nil
                 ].compactMap { $0 }.joined(separator: " ")
             )
         }
-        .help("自動承認中です。すべての承認要求が確認なしで許可されます")
+        .help(L("自動承認中です。すべての承認要求が確認なしで許可されます"))
     }
 }
 
@@ -644,39 +654,39 @@ struct AutoApproveControls: View {
             if let until = store.autoApproveUntil, store.isAutoApproving {
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
                     HStack(spacing: 7) {
-                        Text("残り \(autoApproveCountdown(until: until, now: timeline.date))")
+                        Text(L("残り %@", autoApproveCountdown(until: until, now: timeline.date)))
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                         Spacer(minLength: 4)
-                        Button("+15分") { store.extendAutoApproving(by: 15 * 60) }
+                        Button(L("+15分")) { store.extendAutoApproving(by: 15 * 60) }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .subtle))
-                        Button("オフ") { store.stopAutoApproving() }
+                        Button(L("オフ")) { store.stopAutoApproving() }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .primary))
                     }
                 }
-                Text("すべての要求を確認なしで許可しています")
+                Text(L("すべての要求を確認なしで許可しています"))
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 AutoApprovedRecordList(store: store)
             } else {
                 HStack(spacing: 7) {
-                    Text("自動承認")
+                    Text(L("自動承認"))
                         .font(.system(size: 11, weight: .black, design: .monospaced))
                     Spacer(minLength: 4)
                     ForEach(autoApproveDurations, id: \.label) { duration in
-                        Button(duration.label) { store.startAutoApproving(for: duration.seconds) }
+                        Button(L(duration.label)) { store.startAutoApproving(for: duration.seconds) }
                             .buttonStyle(VoxelButtonStyle(tint: accent))
-                            .help("\(duration.label)のあいだ、すべての承認要求を確認なしで許可します")
+                            .help(L("%@のあいだ、すべての承認要求を確認なしで許可します", L(duration.label)))
                     }
                 }
                 if !store.autoApproved.isEmpty {
                     HStack(spacing: 7) {
-                        Text("前回の自動承認")
+                        Text(L("前回の自動承認"))
                             .font(.system(size: 10, weight: .black, design: .monospaced))
                         Spacer(minLength: 4)
-                        Button("消去") { store.clearAutoApprovedRecord() }
+                        Button(L("消去")) { store.clearAutoApprovedRecord() }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .subtle))
-                            .help("自動承認の記録を消去します")
+                            .help(L("自動承認の記録を消去します"))
                     }
                     AutoApprovedRecordList(store: store)
                 }
@@ -693,7 +703,7 @@ struct AutoApprovedRecordList: View {
 
     var body: some View {
         if store.autoApproved.isEmpty {
-            Text("まだ何も通っていません")
+            Text(L("まだ何も通っていません"))
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.35))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -714,8 +724,8 @@ struct AutoApprovedRecordList: View {
                 }
             }
             Text(store.autoApprovedCount > store.autoApproved.count
-                 ? "計 \(store.autoApprovedCount)件を自動承認（最新 \(store.autoApproved.count)件を保持）"
-                 : "計 \(store.autoApprovedCount)件を自動承認")
+                 ? L("計 %ld件を自動承認（最新 %ld件を保持）", store.autoApprovedCount, store.autoApproved.count)
+                 : L("計 %ld件を自動承認", store.autoApprovedCount))
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -913,7 +923,7 @@ struct LongPressApprovalButton: View {
     @State private var progress: CGFloat = 0
 
     var body: some View {
-        Text("長押しで許可")
+        Text(L("長押しで許可"))
             .font(.system(size: 11, weight: .black, design: .monospaced))
             .padding(.horizontal, 12).padding(.vertical, 5)
             .background(Color(white: 0.22), in: Rectangle())
@@ -941,8 +951,8 @@ struct LongPressApprovalButton: View {
                     }
                 }
             )
-            .accessibilityLabel("危険な操作を許可")
-            .accessibilityHint("1.2秒間押し続けます")
+            .accessibilityLabel(L("危険な操作を許可"))
+            .accessibilityHint(L("1.2秒間押し続けます"))
     }
 }
 

@@ -1,6 +1,19 @@
 import Darwin
 import Foundation
 
+/// Messages are Japanese, or English when macOS prefers English over Japanese,
+/// matching how the app picks its language. `GRANTCH_LANG=ja|en` overrides it.
+let usesEnglish: Bool = {
+    if let forced = ProcessInfo.processInfo.environment["GRANTCH_LANG"] { return forced.hasPrefix("en") }
+    return Bundle.preferredLocalizations(from: ["ja", "en"], forPreferences: Locale.preferredLanguages).first == "en"
+}()
+
+func t(_ japanese: String, _ english: String) -> String { usesEnglish ? english : japanese }
+
+let appName = t("にゃんこのスタミナ", "Nyanko no Stamina")
+/// The name as it reads inside a sentence.
+let quotedAppName = t("「にゃんこのスタミナ」", "Nyanko no Stamina")
+
 enum ConfigError: LocalizedError {
     case usage
     case invalidSettings(String)
@@ -10,11 +23,14 @@ enum ConfigError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .usage: "Usage: grantch-config install [bridge-path] | uninstall"
-        case .invalidSettings(let path): "Hook settings must contain a JSON object: \(path)"
-        case .bridgeNotFound(let path): "grantch-hook not found at \(path)"
+        case .usage: t("使い方: grantch-config install [ブリッジのパス] | uninstall", "Usage: grantch-config install [bridge-path] | uninstall")
+        case .invalidSettings(let path): t("フック設定が JSON オブジェクトではありません: \(path)", "Hook settings must contain a JSON object: \(path)")
+        case .bridgeNotFound(let path): t("grantch-hook が見つかりません: \(path)", "grantch-hook not found at \(path)")
         case .installFailed(let message): message
-        case .noSupportedCLI: "No ~/.claude, ~/.codex, or ~/.gemini directory found. Run Claude Code, Codex CLI, or Antigravity CLI once, then install again."
+        case .noSupportedCLI: t(
+            "~/.claude、~/.codex、~/.gemini のどれも見つかりません。Claude Code、Codex CLI、Antigravity CLI のいずれかを一度起動してから、もう一度インストールしてください。",
+            "No ~/.claude, ~/.codex, or ~/.gemini directory found. Run Claude Code, Codex CLI, or Antigravity CLI once, then install again."
+        )
         }
     }
 }
@@ -64,6 +80,8 @@ var backedUpPaths: Set<String> = []
     let url = resolvedTarget(of: link)
     try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     let existingMode = (try? manager.attributesOfItem(atPath: url.path))?[.posixPermissions] as? NSNumber
+    // A file this run creates has nothing of the user's to back up later.
+    if !manager.fileExists(atPath: url.path) { backedUpPaths.insert(url.path) }
     if manager.fileExists(atPath: url.path), backedUpPaths.insert(url.path).inserted {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss-SSS"
@@ -71,9 +89,9 @@ var backedUpPaths: Set<String> = []
         // repository the link points into, and private: settings can hold tokens.
         let backup = link.appendingPathExtension("grantch-backup-\(formatter.string(from: Date()))-\(UUID().uuidString)")
         guard manager.createFile(atPath: backup.path, contents: try Data(contentsOf: url), attributes: [.posixPermissions: 0o600]) else {
-            throw ConfigError.installFailed("Could not write backup \(backup.path)")
+            throw ConfigError.installFailed(t("バックアップを書き込めません: \(backup.path)", "Could not write backup \(backup.path)"))
         }
-        print("Backup: \(backup.path)")
+        print(t("バックアップ: \(backup.path)", "Backup: \(backup.path)"))
     }
     let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
     try data.write(to: url, options: .atomic)
@@ -99,7 +117,7 @@ var backedUpPaths: Set<String> = []
     guard !alreadyInstalled else { return false }
 
     var handler: [String: Any] = ["type": "command", "command": expectedCommand, "timeout": timeout]
-    if event == "PermissionRequest" { handler["statusMessage"] = "Waiting for approval in Grantch" }
+    if event == "PermissionRequest" { handler["statusMessage"] = t("\(appName)で承認待ち", "Waiting for approval in \(appName)") }
     var group: [String: Any] = ["hooks": [handler]]
     if let matcher { group["matcher"] = matcher }
     permissionRequests.append(group)
@@ -171,7 +189,7 @@ var backedUpPaths: Set<String> = []
             let isOurs = groups.contains { group in
                 (group["hooks"] as? [[String: Any]])?.contains { $0["command"] as? String == command } == true
             }
-            guard isOurs else { throw ConfigError.invalidSettings("Existing unrelated hook named " + name) }
+            guard isOurs else { throw ConfigError.invalidSettings(t("同じ名前の別のフックがあります: ", "Existing unrelated hook named ") + name) }
         }
         root[name] = definition
     }
@@ -202,16 +220,18 @@ var backedUpPaths: Set<String> = []
     guard rename(staged.path, installedBridge.path) == 0 else {
         let message = String(cString: strerror(errno))
         try? manager.removeItem(at: staged)
-        throw ConfigError.installFailed("Could not install \(installedBridge.path): \(message)")
+        throw ConfigError.installFailed(t("\(installedBridge.path) をインストールできません: \(message)", "Could not install \(installedBridge.path): \(message)"))
     }
 
     // Antigravity first: it is the one that can refuse (an unrelated hook with
     // our name), and refusing before the others are written avoids a partial install.
     if hasAntigravity {
         let installed = try configureAntigravity()
-        print(installed ? "Installed Antigravity CLI PreToolUse approval Hook." : "Antigravity CLI Hook was already configured.")
+        print(installed
+            ? t("Antigravity CLI の承認フックをインストールしました。", "Installed Antigravity CLI PreToolUse approval Hook.")
+            : t("Antigravity CLI のフックは設定済みです。", "Antigravity CLI Hook was already configured."))
     } else {
-        print("Skipped Antigravity CLI: ~/.gemini not found.")
+        print(t("Antigravity CLI はスキップしました（~/.gemini がありません）。", "Skipped Antigravity CLI: ~/.gemini not found."))
     }
     if hasClaude {
         let installed = try installHook(at: claudeSettingsURL, matcher: ".*")
@@ -224,9 +244,11 @@ var backedUpPaths: Set<String> = []
                 timeout: 5
             )
         }
-        print(installed ? "Installed Claude Code approval Hook." : "Claude Code approval Hook was already configured.")
+        print(installed
+            ? t("Claude Code の承認フックをインストールしました。", "Installed Claude Code approval Hook.")
+            : t("Claude Code の承認フックは設定済みです。", "Claude Code approval Hook was already configured."))
     } else {
-        print("Skipped Claude Code: ~/.claude not found.")
+        print(t("Claude Code はスキップしました（~/.claude がありません）。", "Skipped Claude Code: ~/.claude not found."))
     }
     if hasCodex {
         let installed = try installHook(at: codexHooksURL, matcher: nil)
@@ -234,23 +256,34 @@ var backedUpPaths: Set<String> = []
         for event in ["PostToolUse", "Stop", "SessionEnd"] {
             _ = try installHook(at: codexHooksURL, matcher: nil, event: event, source: "codex", timeout: 3)
         }
-        print(installed ? "Installed Codex CLI approval Hook." : "Codex CLI approval Hook was already configured.")
+        print(installed
+            ? t("Codex CLI の承認フックをインストールしました。次回の Codex 起動時に、フックの確認と信頼を求められます。", "Installed Codex CLI approval Hook. Codex asks you to review and trust it on its next launch.")
+            : t("Codex CLI の承認フックは設定済みです。", "Codex CLI approval Hook was already configured."))
     } else {
-        print("Skipped Codex CLI: ~/.codex not found.")
+        print(t("Codex CLI はスキップしました（~/.codex がありません）。", "Skipped Codex CLI: ~/.codex not found."))
     }
-    print("Run install again after installing another supported CLI or updating Grantch.")
+    print(t(
+        "実行中の CLI を再起動してください。対応 CLI を追加したときや、\(quotedAppName)を更新したときは、もう一度 install を実行してください。",
+        "Restart running CLIs. Run install again after adding a supported CLI or updating \(appName)."
+    ))
     // Antigravity checks its own permissions after the pre-tool gate opens, and
     // no hook response can satisfy that check. Grantch is the only gate the
     // user actually sees, so say how to let it be the only gate there is.
     if hasAntigravity {
-        print("""
-
-        Antigravity note: start it as `agy --dangerously-skip-permissions` so Grantch \
-        owns the approval. Without that, Antigravity asks again in the terminal after \
-        Grantch says allow. Grantch then gates only run_command, file writes, and \
-        ask_permission; other tools run without asking. An undecided request \
-        (Grantch not running, expired, cancelled) is denied.
-        """)
+        print("\n" + t(
+            """
+            Antigravity の注意: `agy --dangerously-skip-permissions` で起動すると、\(quotedAppName)だけで承認できます。\
+            このオプションなしでは、\(quotedAppName)で許可した後にターミナルでもう一度確認されます。\
+            このとき\(quotedAppName)が確認するのは run_command、ファイルの書き込み、ask_permission だけで、\
+            ほかのツールは確認なしで実行されます。決まらなかった要求（未起動・期限切れ・取り消し）は拒否されます。
+            """,
+            """
+            Antigravity note: start it as `agy --dangerously-skip-permissions` so \(appName) owns the approval. \
+            Without that, Antigravity asks again in the terminal after \(appName) says allow. \
+            \(appName) then gates only run_command, file writes, and ask_permission; other tools run \
+            without asking. An undecided request (not running, expired, cancelled) is denied.
+            """
+        ))
     }
 }
 
@@ -259,8 +292,12 @@ var backedUpPaths: Set<String> = []
     let codexRemoved = try removeHook(at: codexHooksURL)
     _ = try configureAntigravity(remove: true)
     if manager.fileExists(atPath: installedBridge.path) { try manager.removeItem(at: installedBridge) }
-    print(claudeRemoved ? "Removed Grantch from Claude Code; other handlers were preserved." : "No Grantch Claude Code Hook found.")
-    print(codexRemoved ? "Removed Grantch from Codex CLI; other handlers were preserved." : "No Grantch Codex CLI Hook found.")
+    print(claudeRemoved
+        ? t("Claude Code から\(quotedAppName)のフックを削除しました。ほかのフックはそのままです。", "Removed \(appName) from Claude Code; other handlers were preserved.")
+        : t("Claude Code に\(quotedAppName)のフックはありません。", "No \(appName) hook found in Claude Code."))
+    print(codexRemoved
+        ? t("Codex CLI から\(quotedAppName)のフックを削除しました。ほかのフックはそのままです。", "Removed \(appName) from Codex CLI; other handlers were preserved.")
+        : t("Codex CLI に\(quotedAppName)のフックはありません。", "No \(appName) hook found in Codex CLI."))
 }
 
 do {
