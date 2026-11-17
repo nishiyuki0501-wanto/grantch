@@ -48,7 +48,6 @@
 "自動承認中" = "Auto-approving";
 "承認待ちなし" = "No pending requests";
 "承認要求を受け取れません: %@\nClaude Code と Codex は通常の確認に戻り、Antigravity は拒否されます。" = "Cannot receive approval requests: %@\nClaude Code and Codex fall back to their own prompts, and Antigravity requests are denied.";
-"%@ は承認要求を受け取れません: %@" = "%@ cannot receive approval requests: %@";
 "%@を終了" = "Quit %@";
 "%@、停止中" = "%@, not running";
 "%@、自動承認中" = "%@, auto-approving";
@@ -60,12 +59,10 @@
 "15分" = "15 min";
 "1時間" = "1 hour";
 "3時間" = "3 hours";
-"+15分" = "+15 min";
 "自動承認" = "Auto-approve";
 "自動承認 %@" = "Auto-approve for %@";
 "自動承認をオフにする" = "Turn off auto-approval";
 "自動承認中です。すべての承認要求が確認なしで許可されます" = "Auto-approval is on. Every request is allowed without asking.";
-"%@のあいだ、すべての承認要求を確認なしで許可します" = "Allow every request without asking for %@";
 "残り %@" = "%@ left";
 "オフ" = "Off";
 "すべての要求を確認なしで許可しています" = "Allowing every request without asking";
@@ -75,3 +72,17 @@
 "まだ何も通っていません" = "Nothing has been let through yet";
 "計 %ld件を自動承認" = "%ld auto-approved in total";
 "計 %ld件を自動承認（最新 %ld件を保持）" = "%ld auto-approved in total (latest %ld kept)";
+
+"8時間" = "8 hours";
+"オフにするまで" = "Until turned off";
+"オフにするまで継続します" = "Continues until turned off";
+"カスタム" = "Custom";
+"分" = "min";
+"変更" = "Change";
+"延長" = "Extend";
+"時間を選択" = "Select duration";
+"残り時間に追加します" = "Add to remaining time";
+"自動承認の時間（分）" = "Auto-approval duration (minutes)";
+"閉じる" = "Close";
+"開く" = "Open";
+"開始" = "Start";

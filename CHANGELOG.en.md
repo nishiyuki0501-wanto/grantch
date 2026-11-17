@@ -4,6 +4,18 @@
 
 All notable changes are recorded here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-17
+
+### Added and improved
+
+- Added 8-hour, until-turned-off, and custom durations. Direct minute input appears only for Custom.
+- Improved extension controls, notch click targets, input contrast, and panel spacing.
+
+### Fixed
+
+- A bridge copied out of an app downloaded from GitHub kept the download quarantine flag. Claude Code and Codex then could not launch it, so no approval, including auto-approval, ever arrived. The installer removes the flag when it copies the bridge, and the app removes it again on launch, so opening this version repairs an existing install.
+- The whole open notch panel was one click target, so the 15-minute, 1-hour, and 3-hour buttons only unpinned the panel and auto-approval never started. Those buttons and the right-click menu now receive the click.
+
 ## [0.2.0] - 2026-10-02
 
 ### Changed

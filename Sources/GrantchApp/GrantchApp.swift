@@ -30,6 +30,7 @@ final class ApprovalStore: ObservableObject {
     /// CLI's own handling, so the notch must not look like it is watching.
     @Published private(set) var serverError: String?
     @Published var notchWidth: CGFloat = 180
+    @Published var notchSafeHeight: CGFloat = 44
     /// Auto-approval is deliberately in-memory only: a relaunch always comes
     /// back in the normal, asking state.
     @Published private(set) var autoApproveUntil: Date?
@@ -44,8 +45,8 @@ final class ApprovalStore: ObservableObject {
     var isAutoApproving: Bool { (autoApproveUntil ?? .distantPast) > Date() }
 
     func startAutoApproving(for duration: TimeInterval) {
-        autoApproveUntil = Date().addingTimeInterval(duration)
-        clearAutoApprovedRecord()
+        if !isAutoApproving { clearAutoApprovedRecord() }
+        autoApproveUntil = duration == .infinity ? .distantFuture : Date().addingTimeInterval(duration)
         for request in requests { autoApprove(request) }
     }
 
@@ -127,6 +128,13 @@ final class ApprovalStore: ObservableObject {
     }
 }
 
+/// A nonactivating panel drops clicks, including auto-approval and its menu,
+/// unless it is allowed to become key for the control that was clicked.
+final class NotchPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ApprovalStore()
@@ -137,6 +145,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
+            // An already-installed bridge from 0.2.0 still carries the
+            // download quarantine flag. Clear it before any CLI calls the hook.
+            DownloadQuarantine.clearInstalledBridge()
             store.start()
             showPanel()
             NSApplication.shared.setActivationPolicy(.accessory)
@@ -155,12 +166,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor private func showPanel() {
-        let panel = NSPanel(
+        let panel = NotchPanel(
             contentRect: NSRect(x: 0, y: 0, width: 620, height: 132),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        panel.becomesKeyOnlyIfNeeded = false
         panel.level = .screenSaver
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -208,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func resizePanel(for approvalCount: Int) {
         guard let panel else { return }
-        let idleHeight: CGFloat = idleExpanded ? 290 : 132
+        let idleHeight: CGFloat = idleExpanded ? 440 : 260
         let height: CGFloat = approvalCount == 0
             ? idleHeight
             : min(380, 96 + CGFloat(min(approvalCount, 3)) * 86)
@@ -223,6 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             store.notchWidth = 180
         }
+        store.notchSafeHeight = max(44, screen.safeAreaInsets.top + 12)
         let x = screen.frame.midX - panel.frame.width / 2
         let y = screen.frame.maxY - panel.frame.height
         panel.setFrameOrigin(NSPoint(x: x, y: y))
@@ -461,10 +474,13 @@ struct ApprovalQueueRow: View {
 let autoApproveDurations: [(label: String, seconds: TimeInterval)] = [
     ("15分", 15 * 60),
     ("1時間", 60 * 60),
-    ("3時間", 3 * 60 * 60)
+    ("3時間", 3 * 60 * 60),
+    ("8時間", 8 * 60 * 60),
+    ("オフにするまで", .infinity)
 ]
 
 func autoApproveCountdown(until: Date, now: Date) -> String {
+    if until == .distantFuture { return L("オフにするまで") }
     let remaining = max(0, Int(until.timeIntervalSince(now).rounded(.up)))
     return String(format: "%d:%02d", remaining / 60, remaining % 60)
 }
@@ -477,7 +493,7 @@ struct IdleNotchView: View {
     @AppStorage("accentTheme") private var themeKey = InterfaceTheme.sage.rawValue
 
     private var hoverWidth: CGFloat { max(notchWidth + 38, 220) }
-    private var outlineWidth: CGFloat { max(notchWidth + 30, 212) }
+    private var outlineWidth: CGFloat { hoverWidth }
     private var expandedWidth: CGFloat { min(max(notchWidth + 90, 272), 340) }
     private var panelWidth: CGFloat {
         store.isAutoApproving || !store.autoApproved.isEmpty || store.serverError != nil ? 420 : max(expandedWidth, 320)
@@ -495,19 +511,26 @@ struct IdleNotchView: View {
 
     var body: some View {
         Group {
-            if isHovered || isPinnedOpen {
-                Group {
-                    if isPinnedOpen {
-                        VStack(spacing: 8) {
+            if isPinnedOpen {
+                        VStack(spacing: 16) {
+                            Button {
+                                isPinnedOpen = false
+                                isHovered = false
+                            } label: {
                             HStack(spacing: 9) {
                                 PixelWalker(tint: statusAccent)
                                     .frame(width: 42, height: 23)
                                 Text(statusTitle)
                                     .font(.system(size: 12, weight: .black, design: .monospaced))
-                                Image(systemName: "pin.fill")
+                                Image(systemName: "xmark")
                                     .font(.system(size: 9, weight: .black))
                                     .foregroundStyle(statusAccent)
                             }
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                            .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L("閉じる"))
                             if let error = store.serverError {
                                 Text(L("承認要求を受け取れません: %@\nClaude Code と Codex は通常の確認に戻り、Antigravity は拒否されます。", error))
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -516,7 +539,7 @@ struct IdleNotchView: View {
                             }
                             AutoApproveControls(store: store, accent: statusAccent)
                         }
-                        .padding(.top, 35).padding(.horizontal, 12).padding(.bottom, 12)
+                        .padding(.top, store.notchSafeHeight + 8).padding(.horizontal, 20).padding(.bottom, 24)
                         .frame(width: panelWidth, alignment: .top)
                         .foregroundStyle(.white)
                         .background {
@@ -530,52 +553,45 @@ struct IdleNotchView: View {
                             NotchShellShape(notchWidth: notchWidth + 10, notchHeight: 35)
                                 .stroke(.black, lineWidth: 3)
                         }
-                    } else {
-                        Color.clear
-                            .frame(width: outlineWidth, height: 48)
-                            .background {
-                                NotchShellShape(notchWidth: notchWidth + 8, notchHeight: 35)
-                                    .fill(.black.opacity(0.96), style: FillStyle(eoFill: true))
-                            }
-                            .overlay {
-                                NotchShellShape(notchWidth: notchWidth + 8, notchHeight: 35)
-                                    .stroke(.black, lineWidth: 2)
-                            }
+
+                .overlay(alignment: .top) {
+                    Color.black.opacity(0.001)
+                        .frame(height: store.notchSafeHeight + 8)
+                        .contentShape(Rectangle())
+                        .onTapGesture { isPinnedOpen = false }
+                }
+            } else {
+                ZStack(alignment: .bottom) {
+                    Color.black.opacity(0.001)
+                    if isHovered {
+                        NotchShellShape(notchWidth: notchWidth + 8, notchHeight: 35)
+                            .fill(.black.opacity(0.96), style: FillStyle(eoFill: true))
+                            .allowsHitTesting(false)
+                    }
+                    if store.isAutoApproving {
+                        AutoApproveBadge(store: store).allowsHitTesting(false)
+                    } else if store.serverError != nil {
+                        StatusBadge(text: "ERROR").allowsHitTesting(false)
                     }
                 }
-                .shadow(color: .black.opacity(0.45), radius: 0, y: 3)
+                .frame(width: hoverWidth, height: store.notchSafeHeight + 22)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    isPinnedOpen.toggle()
+                    isPinnedOpen = true
+                    isHovered = false
                 }
-                .onContinuousHover { phase in
-                    switch phase {
-                    case .active:
-                        isHovered = true
-                        NSCursor.pointingHand.set()
-                    case .ended:
-                        isHovered = false
-                        NSCursor.arrow.set()
-                    }
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .top)))
-            } else {
-                VStack(spacing: 0) {
-                    if store.isAutoApproving {
-                        AutoApproveBadge(store: store)
-                    } else if let error = store.serverError {
-                        StatusBadge(text: "ERROR")
-                            .help(L("%@ は承認要求を受け取れません: %@", appName, error))
-                    }
-                }
-                .frame(width: hoverWidth, height: 42, alignment: .bottom)
-                .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     if case .active = phase {
                         isHovered = true
                         NSCursor.pointingHand.set()
+                    } else {
+                        isHovered = false
+                        NSCursor.arrow.set()
                     }
                 }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(L("開く"))
+                .accessibilityAction { isPinnedOpen = true }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -600,8 +616,7 @@ struct IdleNotchView: View {
         }
         .animation(.spring(response: 0.22, dampingFraction: 0.72), value: isHovered)
         .animation(.snappy(duration: 0.18), value: isPinnedOpen)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(store.serverError != nil ? L("%@、停止中", appName) : store.isAutoApproving ? L("%@、自動承認中", appName) : L("%@、監視中", appName))
         .accessibilityHint(isPinnedOpen ? L("クリックするとピン留めを解除します") : L("クリックすると承認待ち表示を固定します"))
     }
@@ -648,17 +663,63 @@ struct StatusBadge: View {
 struct AutoApproveControls: View {
     @ObservedObject var store: ApprovalStore
     let accent: Color
+    @State private var customMinutes = 60
+    @State private var isCustom = false
+    @FocusState private var timeInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 7) {
+            HStack(spacing: 7) {
+                Text(L("自動承認"))
+                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                Spacer(minLength: 4)
+                Menu(isCustom ? L("カスタム") : L("時間を選択")) {
+                    ForEach(autoApproveDurations, id: \.label) { duration in
+                        Button(L(duration.label)) {
+                            isCustom = false
+                            store.startAutoApproving(for: duration.seconds)
+                        }
+                    }
+                    Divider()
+                    Button(L("カスタム")) {
+                        isCustom = true
+                        timeInputFocused = true
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .padding(8)
+                .background(Color(white: 0.14), in: RoundedRectangle(cornerRadius: 6))
+                .environment(\.colorScheme, .dark)
+            }
+            if isCustom { customTimeInput }
             if let until = store.autoApproveUntil, store.isAutoApproving {
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
                     HStack(spacing: 7) {
                         Text(L("残り %@", autoApproveCountdown(until: until, now: timeline.date)))
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                         Spacer(minLength: 4)
-                        Button(L("+15分")) { store.extendAutoApproving(by: 15 * 60) }
-                            .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .subtle))
+                        Menu(L("延長")) {
+                            ForEach(autoApproveDurations.filter { $0.seconds.isFinite }, id: \.label) { duration in
+                                Button("+" + L(duration.label)) {
+                                    store.extendAutoApproving(by: duration.seconds)
+                                }
+                            }
+                            Divider()
+                            Button(L("カスタム")) {
+                                isCustom = true
+                                timeInputFocused = true
+                            }
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color(white: 0.14), in: RoundedRectangle(cornerRadius: 4))
+                        .environment(\.colorScheme, .dark)
+                        .disabled(until == .distantFuture)
+                        .help(until == .distantFuture ? L("オフにするまで継続します") : L("残り時間に追加します"))
                         Button(L("オフ")) { store.stopAutoApproving() }
                             .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .primary))
                     }
@@ -669,16 +730,6 @@ struct AutoApproveControls: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 AutoApprovedRecordList(store: store)
             } else {
-                HStack(spacing: 7) {
-                    Text(L("自動承認"))
-                        .font(.system(size: 11, weight: .black, design: .monospaced))
-                    Spacer(minLength: 4)
-                    ForEach(autoApproveDurations, id: \.label) { duration in
-                        Button(L(duration.label)) { store.startAutoApproving(for: duration.seconds) }
-                            .buttonStyle(VoxelButtonStyle(tint: accent))
-                            .help(L("%@のあいだ、すべての承認要求を確認なしで許可します", L(duration.label)))
-                    }
-                }
                 if !store.autoApproved.isEmpty {
                     HStack(spacing: 7) {
                         Text(L("前回の自動承認"))
@@ -694,6 +745,50 @@ struct AutoApproveControls: View {
         }
         .controlSize(.small)
     }
+    private var customTimeInput: some View {
+            HStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.white.opacity(0.7))
+                    TextField("60", value: $customMinutes, format: .number.grouping(.never))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color.white)
+                        .tint(.white)
+                        .multilineTextAlignment(.trailing)
+                        .focused($timeInputFocused)
+                        .frame(minWidth: 40, maxWidth: 70)
+                        .accessibilityLabel(L("自動承認の時間（分）"))
+                    Text(L("分"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .background(Color(white: 0.08), in: RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(timeInputFocused ? Color.white.opacity(0.85) : Color.white.opacity(0.3), lineWidth: 1)
+                }
+                Button(store.isAutoApproving ? L("変更") : L("開始")) {
+                    timeInputFocused = false
+                    store.startAutoApproving(for: Double(customMinutes) * 60)
+                }
+                .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .primary))
+                .disabled(customMinutes < 1)
+                if store.isAutoApproving && store.autoApproveUntil != .distantFuture {
+                    Button(L("延長")) {
+                        timeInputFocused = false
+                        store.extendAutoApproving(by: Double(customMinutes) * 60)
+                    }
+                    .buttonStyle(VoxelButtonStyle(tint: accent, emphasis: .subtle))
+                    .disabled(customMinutes < 1)
+                }
+            }
+            .padding(.vertical, 4)
+            .environment(\.colorScheme, .dark)
+    }
+
 }
 
 /// Nothing asked the user during auto-approval, so this record is the only way

@@ -1,6 +1,23 @@
+import Darwin
 import Foundation
 import Testing
 @testable import GrantchCore
+
+@Test func clearingDownloadQuarantineRemovesTheFlagCopiedFromTheApp() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("grantch-quarantine-\(UUID().uuidString)")
+    FileManager.default.createFile(atPath: url.path, contents: Data("x".utf8))
+    defer { try? FileManager.default.removeItem(at: url) }
+    let value = "0083;0;Chrome;TEST"
+    let wrote = value.withCString { pointer in
+        setxattr(url.path, "com.apple.quarantine", pointer, strlen(pointer), 0, 0)
+    }
+    #expect(wrote == 0)
+    DownloadQuarantine.clear(at: url)
+    #expect(getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0) < 0)
+    #expect(errno == ENOATTR)
+    // A bridge that was never downloaded still installs.
+    DownloadQuarantine.clear(at: url)
+}
 
 @Test func parsesClaudePermissionRequest() throws {
     let data = Data(#"{"session_id":"abc","cwd":"/tmp/demo","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"npm test"}}"#.utf8)

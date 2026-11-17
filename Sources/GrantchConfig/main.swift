@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import GrantchCore
 
 /// Messages are Japanese, or English when macOS prefers English over Japanese,
 /// matching how the app picks its language. `GRANTCH_LANG=ja|en` overrides it.
@@ -217,6 +218,9 @@ var backedUpPaths: Set<String> = []
     let staged = installDirectory.appendingPathComponent(".grantch-hook-\(UUID().uuidString)")
     try manager.copyItem(at: URL(fileURLWithPath: source), to: staged)
     chmod(staged.path, 0o755)
+    // copyItem keeps the download quarantine flag. A CLI cannot show the
+    // Gatekeeper dialog for this standalone binary, so leave the flag behind.
+    DownloadQuarantine.clear(at: staged)
     guard rename(staged.path, installedBridge.path) == 0 else {
         let message = String(cString: strerror(errno))
         try? manager.removeItem(at: staged)

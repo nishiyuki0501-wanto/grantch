@@ -14,7 +14,7 @@ let package = Package(
         .target(name: "GrantchCore"),
         .executableTarget(name: "GrantchApp", dependencies: ["GrantchCore"]),
         .executableTarget(name: "GrantchHook", dependencies: ["GrantchCore"]),
-        .executableTarget(name: "GrantchConfig"),
+        .executableTarget(name: "GrantchConfig", dependencies: ["GrantchCore"]),
         .testTarget(name: "GrantchCoreTests", dependencies: ["GrantchCore"])
     ]
 )

@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -35,7 +36,19 @@ with tempfile.TemporaryDirectory(prefix='grantch-config-') as directory:
     (home / paths[0]).rename(claude_target)
     (home / paths[0]).symlink_to(claude_target)
 
-    run(home, 'install', str(bridge))
+    quarantined = home / 'quarantined-hook'
+    shutil.copy(bridge, quarantined)
+    subprocess.run(
+        ['xattr', '-w', 'com.apple.quarantine', '0083;0;Chrome;TEST', str(quarantined)],
+        check=True,
+    )
+    run(home, 'install', str(quarantined))
+    installed_bridge = home / 'Library/Application Support/Grantch/bin/grantch-hook'
+    quarantine = subprocess.run(
+        ['xattr', '-p', 'com.apple.quarantine', str(installed_bridge)],
+        capture_output=True, text=True,
+    )
+    assert quarantine.returncode != 0, quarantine.stdout
     installed = [(home / path).read_bytes() for path in paths]
     run(home, 'install', str(bridge))
     assert installed == [(home / path).read_bytes() for path in paths], 'install is not idempotent'
