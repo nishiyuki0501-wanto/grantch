@@ -122,6 +122,34 @@ import Testing
     #expect(monitor.pollDecision() == .allow)
 }
 
+@Test func earlierIdenticalCallDoesNotDismissNewRequest() throws {
+    // Calls made from inside a script carry no tool_use_id and reach the
+    // transcript only when the script ends, so the newest matching tool_use is
+    // an earlier, finished call. Its result must not read as this request's
+    // terminal answer, or auto-approval falls back to the native prompt.
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let call = #"{"message":{"content":[{"type":"tool_use","id":"old","name":"Bash","input":{"command":"idb ui describe-all"}}]}}"# + "\n"
+    let result = #"{"message":{"content":[{"type":"tool_result","tool_use_id":"old","is_error":false}]}}"# + "\n"
+    let decided = #"{"attachment":{"hookEvent":"PermissionRequest","decision":"allow","toolUseID":"older"}}"# + "\n"
+    let olderCall = #"{"message":{"content":[{"type":"tool_use","id":"older","name":"Bash","input":{"command":"idb ui describe-all"}}]}}"# + "\n"
+    try Data((olderCall + decided + call + result).utf8).write(to: url)
+    let object: [String: Any] = ["session_id": "s", "cwd": "/tmp", "hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": ["command": "idb ui describe-all"], "transcript_path": url.path]
+    let input = try JSONDecoder().decode(ClaudeHookInput.self, from: JSONSerialization.data(withJSONObject: object))
+    #expect(ClaudeTranscriptDecisionMonitor(input: input, command: "idb ui describe-all") == nil)
+
+    // An unresolved identical call is still tracked once it appears.
+    let pending = #"{"message":{"content":[{"type":"tool_use","id":"new","name":"Bash","input":{"command":"idb ui describe-all"}}]}}"# + "\n"
+    try Data((call + result + pending).utf8).write(to: url)
+    let monitor = try #require(ClaudeTranscriptDecisionMonitor(input: input, command: "idb ui describe-all"))
+    #expect(monitor.pollDecision() == nil)
+    let writer = try FileHandle(forWritingTo: url)
+    defer { try? writer.close() }
+    try writer.seekToEnd()
+    try writer.write(contentsOf: Data((#"{"message":{"content":[{"type":"tool_result","tool_use_id":"new"}]}}"# + "\n").utf8))
+    #expect(monitor.pollDecision() == .allow)
+}
+
 @Test func socketServerCompletesApprovalRoundTrip() async throws {
     let path = "/tmp/grantch-test-\(UUID().uuidString).sock"
     let server = ApprovalServer(path: path)
@@ -305,6 +333,21 @@ import Testing
     }
 }
 
+@Test func antigravityMCPCallsAreRoutedAndShownWithArguments() throws {
+    // Payload shape captured from agy 1.5.15.
+    let data = Data(#"{"conversationId":"c","workspacePaths":["/tmp/project"],"stepIdx":2,"toolCall":{"args":{"Arguments":{"text":"hello"},"ServerName":"figma","ToolName":"get_libraries"},"id":"call_1","name":"call_mcp_tool"}}"#.utf8)
+    let request = try ApprovalRequest(antigravity: JSONDecoder().decode(AntigravityHookInput.self, from: data))
+    #expect(request.toolName == "call_mcp_tool")
+    #expect(request.command == #"mcp figma/get_libraries {"text":"hello"}"#)
+    let matcher = try Regex(AntigravityTools.approvalMatcher)
+    for name in ["call_mcp_tool", "run_command", "write_to_file", "ask_permission"] {
+        #expect(name.wholeMatch(of: matcher) != nil)
+    }
+    for name in ["view_file", "grep_search", "xcall_mcp_tool"] {
+        #expect(name.wholeMatch(of: matcher) == nil)
+    }
+}
+
 @Test func completionIsIsolatedBySessionCallAndTurn() throws {
     func request(session: String = "s", call: String = "call-1", turn: String = "turn-1") throws -> ApprovalRequest {
         let data = Data("""
@@ -329,7 +372,9 @@ import Testing
         let call = #"{"message":{"content":[{"type":"tool_use","id":"call-1","name":"Bash","input":{"command":"npm test"}}]}}"# + "\n"
         let result = #"{"message":{"content":[{"type":"tool_result","tool_use_id":"call-1","is_error":true}]}}"# + "\n"
         try Data((call + (beforeStart ? result : "")).utf8).write(to: url)
-        let object: [String: Any] = ["session_id": "s", "cwd": "/tmp", "hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": ["command": "npm test"], "transcript_path": url.path]
+        var object: [String: Any] = ["session_id": "s", "cwd": "/tmp", "hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": ["command": "npm test"], "transcript_path": url.path]
+        // A result already in the transcript is only attributable by ID.
+        if beforeStart { object["tool_use_id"] = "call-1" }
         let input = try JSONDecoder().decode(ClaudeHookInput.self, from: JSONSerialization.data(withJSONObject: object))
         let monitor = try #require(ClaudeTranscriptDecisionMonitor(input: input, command: "npm test"))
         if !beforeStart {

@@ -104,7 +104,7 @@ The current Hook contracts are documented in the official [Claude Code Hooks ref
 
 ## Antigravity and terminal synchronization
 
-Antigravity exposes synchronous `PreToolUse`, not a dedicated permission-request event. The app therefore gates `run_command`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, and `ask_permission`, including operations Antigravity might otherwise allow automatically. Other tools, such as `view_file`, `read_url_content`, `manage_task`, subagents, and MCP tools, are not gated. It does not mirror an already-open Antigravity permission dialog.
+Antigravity exposes synchronous `PreToolUse`, not a dedicated permission-request event. The app therefore gates `run_command`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, `ask_permission`, and MCP tools (`call_mcp_tool`, shown as `mcp server/tool arguments`), including operations Antigravity might otherwise allow automatically. Other tools, such as `view_file`, `read_url_content`, `manage_task`, and subagents, are not gated. It does not mirror an already-open Antigravity permission dialog.
 
 Releasing the pre-tool gate is not the same as granting permission. On `agy 1.2.5`, a `decision: allow` response lets the step past the hook, and Antigravity then evaluates its own permission rules (`permissions.allow` in `~/.gemini/antigravity-cli/settings.json`, plus per-conversation grants) and stops on `Run this command?` in the terminal. No hook response field closes that gap: `permissionOverrides` replaces the resource string the CLI asks about rather than granting it, so `["command(echo)"]` only rewrites the prompt.
 

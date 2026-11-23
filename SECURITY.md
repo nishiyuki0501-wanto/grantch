@@ -22,7 +22,7 @@ Grantch（プロジェクト名 `grantch`）は承認のための画面であっ
 
 **答えるのは、CLI が尋ねてきたことだけです。** Claude Code と Codex CLI は、本来なら自分の確認画面を出す場面で要求を送ってきます。CLI が既に許可しているもの（許可リスト、`--dangerously-skip-permissions`、バイパスモード、フルオートモード）は、このアプリには届きません。また、`~/.claude/settings.json`、`~/.codex/hooks.json`、`~/.gemini/config/hooks.json` の編集を許されたエージェントは、フックを削除できます。こうした編集は「危険」と表示します。
 
-**Antigravity では、このアプリが唯一の確認窓口になります。** 推奨する `agy --dangerously-skip-permissions` で起動すると、Antigravity 自身の確認がなくなります。そのうえで、このアプリが確認するのは `run_command`、ファイルの書き込み、`ask_permission` だけです。`view_file`、`read_url_content`、`manage_task`、サブエージェント、MCP ツールなどは確認なしで実行されます。フックが読み込まれている間は、確認対象のツールについて安全側に倒します（期限切れ・取り消し・判断できない要求は拒否します）。ただし、フックが読み込まれていなければ、どのツールも確認なしで実行されます。
+**Antigravity では、このアプリが唯一の確認窓口になります。** 推奨する `agy --dangerously-skip-permissions` で起動すると、Antigravity 自身の確認がなくなります。そのうえで、このアプリが確認するのは `run_command`、ファイルの書き込み、`ask_permission`、MCP ツールだけです。`view_file`、`read_url_content`、`manage_task`、サブエージェントなどは確認なしで実行されます。フックが読み込まれている間は、確認対象のツールについて安全側に倒します（期限切れ・取り消し・判断できない要求は拒否します）。ただし、フックが読み込まれていなければ、どのツールも確認なしで実行されます。
 
 **表示するのは実際の入力で、エージェントの言い分ではありません。**
 

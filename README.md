@@ -119,7 +119,7 @@ python3 Tests/Integration/localization_test.py
 
 ## Antigravity とターミナルとの連携
 
-Antigravity には承認専用のイベントがなく、同期的な `PreToolUse` だけがあります。そのため、このアプリは `run_command`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`ask_permission` を確認対象にしています。Antigravity が自動で許可する操作も含みます。一方、`view_file`、`read_url_content`、`manage_task`、サブエージェント、MCP ツールなどは確認しません。また、Antigravity で既に開いている確認ダイアログを表示することもできません。
+Antigravity には承認専用のイベントがなく、同期的な `PreToolUse` だけがあります。そのため、このアプリは `run_command`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`ask_permission`、MCP ツール（`call_mcp_tool`。パネルには `mcp サーバー/ツール 引数` と表示）を確認対象にしています。Antigravity が自動で許可する操作も含みます。一方、`view_file`、`read_url_content`、`manage_task`、サブエージェントなどは確認しません。また、Antigravity で既に開いている確認ダイアログを表示することもできません。
 
 フックで通すことと、権限を与えることは別です。`agy 1.2.5` では、`decision: allow` を返すとフックは通過しますが、その後 Antigravity は自身の権限ルール（`~/.gemini/antigravity-cli/settings.json` の `permissions.allow` と会話ごとの許可）を評価し、ターミナルで `Run this command?` と確認して止まります。フックの応答でこれを解消する方法はありません。`permissionOverrides` は確認対象の文字列を置き換えるだけで、許可はしません。`["command(echo)"]` を返しても、確認の文言が変わるだけです。
 

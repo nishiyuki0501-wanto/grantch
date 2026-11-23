@@ -19,7 +19,9 @@ public extension ApprovalRequest {
         let args = input.toolCall.args
         let workingDirectory = args["Cwd"]?.stringValue ?? input.workspacePaths?.first ?? ""
         // Show the actual operation, not only an agent-authored description.
-        let summary = args["CommandLine"]?.stringValue
+        let mcp: String? = Self.mcpSummary(toolName: input.toolCall.name, args: args)
+        let summary: String = args["CommandLine"]?.stringValue
+            ?? mcp
             ?? args["TargetFile"]?.stringValue.map { "\(input.toolCall.name) \($0)" }
             ?? args["Target"]?.stringValue.map { "\(args["Action"]?.stringValue ?? input.toolCall.name) \($0)" }
             ?? (args.isEmpty ? input.toolCall.name : "\(input.toolCall.name) \(ToolSummary.canonicalJSON(.object(args)))")
@@ -42,4 +44,23 @@ public extension ApprovalRequest {
         detail = nil
         subagentId = nil
     }
+
+    /// MCP calls are shown as `server/tool` followed by the full arguments.
+    private static func mcpSummary(toolName: String, args: [String: JSONValue]) -> String? {
+        guard toolName == AntigravityTools.mcp,
+              let server = args["ServerName"]?.stringValue,
+              let tool = args["ToolName"]?.stringValue else { return nil }
+        let arguments = args["Arguments"].map { " " + ToolSummary.canonicalJSON($0) } ?? ""
+        return "mcp \(server)/\(tool)\(arguments)"
+    }
+}
+
+public enum AntigravityTools {
+    /// The name Antigravity gives every MCP tool call in `PreToolUse`
+    /// (agy 1.5.15); the server and tool are in `ServerName` and `ToolName`.
+    public static let mcp = "call_mcp_tool"
+    /// Tools routed to Grantch: commands, file changes, explicit permission
+    /// requests and MCP calls. Read-only tools are left to Antigravity.
+    public static let approvalMatcher =
+        "^(run_command|write_to_file|replace_file_content|multi_replace_file_content|ask_permission|\(mcp))$"
 }

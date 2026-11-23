@@ -4,7 +4,9 @@
 
 All notable changes are recorded here. Versions follow [Semantic Versioning](https://semver.org/).
 
-## [0.2.1] - 2026-11-17
+## [0.2.2] - 2026-11-23
+
+0.2.1 was never published, so its changes ship in this release.
 
 ### Added and improved
 
@@ -15,6 +17,8 @@ All notable changes are recorded here. Versions follow [Semantic Versioning](htt
 
 - A bridge copied out of an app downloaded from GitHub kept the download quarantine flag. Claude Code and Codex then could not launch it, so no approval, including auto-approval, ever arrived. The installer removes the flag when it copies the bridge, and the app removes it again on launch, so opening this version repairs an existing install.
 - The whole open notch panel was one click target, so the 15-minute, 1-hour, and 3-hour buttons only unpinned the panel and auto-approval never started. Those buttons and the right-click menu now receive the click.
+- Antigravity MCP tools (`call_mcp_tool`) were outside the hook, so Antigravity's own prompt appeared even during auto-approval. MCP tools are now gated and shown as `mcp server/tool arguments`. Run `grantch-config install` again to apply it.
+- In Claude Code, a request without a tool-call ID (such as a tool run from inside a script) could match an earlier, finished call with the same command. Grantch read that as a terminal answer and fell back to the native prompt, even during auto-approval. Calls that already have a result are no longer matched.
 
 ## [0.2.0] - 2026-10-02
 

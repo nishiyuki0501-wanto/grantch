@@ -180,7 +180,7 @@ var backedUpPaths: Set<String> = []
         root.removeValue(forKey: name)
     } else {
         let definition: [String: Any] = ["PreToolUse": [[
-            "matcher": "^(run_command|write_to_file|replace_file_content|multi_replace_file_content|ask_permission)$",
+            "matcher": AntigravityTools.approvalMatcher,
             "hooks": [["type": "command", "command": command, "timeout": 330]]
         ]]]
         if let existing = root[name] {
@@ -278,13 +278,13 @@ var backedUpPaths: Set<String> = []
             """
             Antigravity の注意: `agy --dangerously-skip-permissions` で起動すると、\(quotedAppName)だけで承認できます。\
             このオプションなしでは、\(quotedAppName)で許可した後にターミナルでもう一度確認されます。\
-            このとき\(quotedAppName)が確認するのは run_command、ファイルの書き込み、ask_permission だけで、\
+            このとき\(quotedAppName)が確認するのは run_command、ファイルの書き込み、ask_permission、MCP ツールだけで、\
             ほかのツールは確認なしで実行されます。決まらなかった要求（未起動・期限切れ・取り消し）は拒否されます。
             """,
             """
             Antigravity note: start it as `agy --dangerously-skip-permissions` so \(appName) owns the approval. \
             Without that, Antigravity asks again in the terminal after \(appName) says allow. \
-            \(appName) then gates only run_command, file writes, and ask_permission; other tools run \
+            \(appName) then gates only run_command, file writes, ask_permission, and MCP tools; other tools run \
             without asking. An undecided request (not running, expired, cancelled) is denied.
             """
         ))

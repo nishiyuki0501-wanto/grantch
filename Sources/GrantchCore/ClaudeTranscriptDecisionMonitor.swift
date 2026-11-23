@@ -22,17 +22,27 @@ public final class ClaudeTranscriptDecisionMonitor {
         guard (try? handle.seek(toOffset: start)) != nil,
               let tail = try? handle.read(upToCount: Int(end - start)) else { return nil }
 
-        let resolvedToolUseID = input.toolUseId
-            ?? Self.findToolUseID(in: tail, toolName: input.toolName, command: command)
-        guard let resolvedToolUseID else { return nil }
+        let lines = tail.split(separator: 0x0A).map { Data($0) }
+        let resolvedToolUseID: String
+        let decidedBeforeStart: Decision?
+        if let id = input.toolUseId {
+            resolvedToolUseID = id
+            // The terminal may have resolved the call before this hook starts.
+            decidedBeforeStart = lines.compactMap { Self.decision(in: $0, toolUseID: id) }.last
+        } else {
+            // Without an ID the call is matched by tool and command. A call that
+            // already has a result is an earlier, identical one, not this
+            // request: calls made from inside a script reach the transcript only
+            // after the script ends, so the newest match is often stale.
+            guard let id = Self.findUnresolvedToolUseID(in: lines, toolName: input.toolName, command: command) else { return nil }
+            resolvedToolUseID = id
+            decidedBeforeStart = nil
+        }
 
         self.handle = handle
         toolUseID = resolvedToolUseID
         offset = end
-        // The terminal may have resolved the call before this hook starts.
-        initialDecision = tail.split(separator: 0x0A).compactMap {
-            Self.decision(in: Data($0), toolUseID: resolvedToolUseID)
-        }.last
+        initialDecision = decidedBeforeStart
     }
 
     deinit { try? handle.close() }
@@ -55,19 +65,39 @@ public final class ClaudeTranscriptDecisionMonitor {
         return nil
     }
 
-    private static func findToolUseID(in data: Data, toolName: String, command: String) -> String? {
-        for line in data.split(separator: 0x0A).reversed() {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+    private static func findUnresolvedToolUseID(in lines: [Data], toolName: String, command: String) -> String? {
+        let resolved = Set(lines.flatMap(resolvedToolUseIDs(in:)))
+        for line in lines.reversed() {
+            guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
                   let message = object["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]] else { continue }
             for item in content.reversed() where item["type"] as? String == "tool_use" {
                 guard item["name"] as? String == toolName,
-                      let id = item["id"] as? String else { continue }
+                      let id = item["id"] as? String, !resolved.contains(id) else { continue }
                 let input = item["input"] as? [String: Any] ?? [:]
                 if ToolSummary.describe(toolName: toolName, input: input) == command { return id }
             }
         }
         return nil
+    }
+
+    /// The calls a transcript line settles, by hook decision or tool result.
+    private static func resolvedToolUseIDs(in data: Data) -> [String] {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        var ids: [String] = []
+        if let attachment = object["attachment"] as? [String: Any],
+           attachment["hookEvent"] as? String == "PermissionRequest",
+           attachment["decision"] is String,
+           let id = attachment["toolUseID"] as? String {
+            ids.append(id)
+        }
+        if let message = object["message"] as? [String: Any],
+           let content = message["content"] as? [[String: Any]] {
+            ids += content.compactMap {
+                $0["type"] as? String == "tool_result" ? $0["tool_use_id"] as? String : nil
+            }
+        }
+        return ids
     }
 
     private static func decision(in data: Data, toolUseID: String) -> Decision? {
