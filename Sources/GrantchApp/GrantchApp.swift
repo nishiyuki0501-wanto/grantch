@@ -25,12 +25,17 @@ struct AutoApprovedRecord: Identifiable, Equatable {
 
 @MainActor
 final class ApprovalStore: ObservableObject {
-    @Published var requests: [ApprovalRequest] = []
+    @Published var requests: [ApprovalRequest] = [] {
+        // A request takes over the panel, which comes back closed afterwards.
+        didSet { if !requests.isEmpty, isPinnedOpen { isPinnedOpen = false } }
+    }
     /// Set when the socket could not be opened. Hooks then fall back to each
     /// CLI's own handling, so the notch must not look like it is watching.
     @Published private(set) var serverError: String?
-    @Published var notchWidth: CGFloat = 180
-    @Published var notchSafeHeight: CGFloat = 44
+    @Published var layout = NotchLayout(notch: nil)
+    /// Whether the idle panel was clicked open. It lives here because the
+    /// status badge sits in a window of its own and hides while the panel is open.
+    @Published var isPinnedOpen = false
     /// Auto-approval is deliberately in-memory only: a relaunch always comes
     /// back in the normal, asking state.
     @Published private(set) var autoApproveUntil: Date?
@@ -128,6 +133,57 @@ final class ApprovalStore: ObservableObject {
     }
 }
 
+/// The top center of the display the panel sits on. Every shape and offset
+/// around the camera housing is derived from it, so each Mac gets a shell cut
+/// for its own notch, and a display without one gets a tab hanging from the
+/// top edge instead of a cutout around nothing.
+struct NotchLayout: Equatable {
+    /// Size of the camera housing in points, or nil on a display without one.
+    /// Its height is also the menu bar's height on that display.
+    let notch: CGSize?
+
+    init(notch: CGSize?) {
+        self.notch = notch
+    }
+
+    init(screen: NSScreen) {
+        if screen.safeAreaInsets.top > 0,
+           let left = screen.auxiliaryTopLeftArea,
+           let right = screen.auxiliaryTopRightArea {
+            notch = CGSize(width: max(0, right.minX - left.maxX), height: screen.safeAreaInsets.top)
+        } else {
+            notch = nil
+        }
+    }
+
+    /// What the idle panel hangs from: the housing, or the tab drawn in its place.
+    var anchor: CGSize { notch ?? CGSize(width: 96, height: 6) }
+
+    /// The black shell shown while the pointer is on the anchor.
+    var hoverShell: CGSize {
+        if let notch { return CGSize(width: max(notch.width + 38, 220), height: notch.height + 34) }
+        return CGSize(width: 150, height: 24)
+    }
+
+    /// The only part of the idle panel that takes the pointer. It stays within
+    /// the menu bar's height: a window takes every click on its own pixels, so
+    /// anything lower would cost the app below (a browser's tab strip, say)
+    /// its clicks.
+    func pointerArea(hovered: Bool) -> CGSize {
+        if let notch { return CGSize(width: hoverShell.width, height: notch.height) }
+        return hovered ? hoverShell : CGSize(width: anchor.width + 24, height: anchor.height + 2)
+    }
+
+    /// The hole a shell leaves for the housing, a little larger than the housing.
+    func cutout(extraWidth: CGFloat) -> CGSize? {
+        notch.map { CGSize(width: $0.width + extraWidth, height: $0.height + 3) }
+    }
+
+    /// Where content starts inside the approval queue and the opened panel.
+    var queueTopInset: CGFloat { notch.map { $0.height + 11 } ?? 22 }
+    var panelTopInset: CGFloat { notch.map { $0.height + 20 } ?? 22 }
+}
+
 /// A nonactivating panel drops clicks, including auto-approval and its menu,
 /// unless it is allowed to become key for the control that was clicked.
 final class NotchPanel: NSPanel {
@@ -139,6 +195,7 @@ final class NotchPanel: NSPanel {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ApprovalStore()
     private var panel: NSPanel?
+    private var badgePanel: NSPanel?
     private var cancellables: Set<AnyCancellable> = []
     /// The idle panel grows for auto-approval, its record, or a startup error.
     private var idleExpanded = false
@@ -191,8 +248,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         panel.contentView = container
         panel.setContentSize(NSSize(width: 620, height: 132))
+        // The status badge hangs below the menu bar, over whatever app is
+        // there, and a window takes every click on its opaque pixels. So the
+        // badge gets a window that ignores the pointer instead of a place in
+        // the panel.
+        let badgePanel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 96),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        badgePanel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        badgePanel.isOpaque = false
+        badgePanel.backgroundColor = .clear
+        badgePanel.hasShadow = false
+        badgePanel.ignoresMouseEvents = true
+        badgePanel.collectionBehavior = panel.collectionBehavior
+        let badgeView = NSHostingView(rootView: NotchBadgeView(store: store))
+        badgeView.sizingOptions = []
+        badgePanel.contentView = badgeView
+        badgePanel.setContentSize(NSSize(width: 320, height: 96))
+        self.badgePanel = badgePanel
         position(panel)
         panel.orderFrontRegardless()
+        badgePanel.orderFrontRegardless()
         self.panel = panel
         store.$requests
             .map(\.count)
@@ -230,15 +309,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor private func position(_ panel: NSPanel) {
         guard let screen = preferredDisplay else { return }
-        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-            store.notchWidth = max(0, right.minX - left.maxX)
-        } else {
-            store.notchWidth = 180
+        let layout = NotchLayout(screen: screen)
+        if store.layout != layout { store.layout = layout }
+        for window in [panel, badgePanel].compactMap({ $0 }) {
+            let x = screen.frame.midX - window.frame.width / 2
+            let y = screen.frame.maxY - window.frame.height
+            window.setFrameOrigin(NSPoint(x: x, y: y))
         }
-        store.notchSafeHeight = max(44, screen.safeAreaInsets.top + 12)
-        let x = screen.frame.midX - panel.frame.width / 2
-        let y = screen.frame.maxY - panel.frame.height
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
     private var preferredDisplay: NSScreen? {
@@ -256,11 +333,11 @@ struct NotchView: View {
     var body: some View {
         ZStack(alignment: .top) {
             if !store.requests.isEmpty {
-                ApprovalQueueView(requests: store.requests, notchWidth: store.notchWidth) { decision, request in
+                ApprovalQueueView(requests: store.requests, layout: store.layout) { decision, request in
                     store.decide(decision, request: request)
                 }
             } else {
-                IdleNotchView(store: store, notchWidth: store.notchWidth)
+                IdleNotchView(store: store, layout: store.layout)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -317,7 +394,7 @@ enum InterfaceTheme: String, CaseIterable, Identifiable {
 
 struct ApprovalQueueView: View {
     let requests: [ApprovalRequest]
-    let notchWidth: CGFloat
+    let layout: NotchLayout
     let decide: (ApprovalDecision, ApprovalRequest) -> Void
     @AppStorage("accentTheme") private var themeKey = InterfaceTheme.sage.rawValue
 
@@ -349,18 +426,18 @@ struct ApprovalQueueView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 12).padding(.top, 43).padding(.bottom, 14)
+        .padding(.horizontal, 12).padding(.top, layout.queueTopInset).padding(.bottom, 14)
         .frame(width: 600)
         .foregroundStyle(.white)
         .background {
             PixelBlockBackground(accent: accent, isActive: true)
                 .mask {
-                    NotchShellShape(notchWidth: notchWidth + 16, notchHeight: 35)
+                    NotchShellShape(cutout: layout.cutout(extraWidth: 16))
                         .fill(style: FillStyle(eoFill: true))
                 }
         }
         .overlay {
-            NotchShellShape(notchWidth: notchWidth + 16, notchHeight: 35)
+            NotchShellShape(cutout: layout.cutout(extraWidth: 16))
                 .stroke(.black.opacity(0.9), lineWidth: 3)
         }
         .shadow(color: .black.opacity(0.75), radius: 0, y: 5)
@@ -487,14 +564,11 @@ func autoApproveCountdown(until: Date, now: Date) -> String {
 
 struct IdleNotchView: View {
     @ObservedObject var store: ApprovalStore
-    let notchWidth: CGFloat
+    let layout: NotchLayout
     @State private var isHovered = false
-    @State private var isPinnedOpen = false
     @AppStorage("accentTheme") private var themeKey = InterfaceTheme.sage.rawValue
 
-    private var hoverWidth: CGFloat { max(notchWidth + 38, 220) }
-    private var outlineWidth: CGFloat { hoverWidth }
-    private var expandedWidth: CGFloat { min(max(notchWidth + 90, 272), 340) }
+    private var expandedWidth: CGFloat { min(max(layout.anchor.width + 90, 272), 340) }
     private var panelWidth: CGFloat {
         store.isAutoApproving || !store.autoApproved.isEmpty || store.serverError != nil ? 420 : max(expandedWidth, 320)
     }
@@ -511,10 +585,10 @@ struct IdleNotchView: View {
 
     var body: some View {
         Group {
-            if isPinnedOpen {
+            if store.isPinnedOpen {
                         VStack(spacing: 16) {
                             Button {
-                                isPinnedOpen = false
+                                store.isPinnedOpen = false
                                 isHovered = false
                             } label: {
                             HStack(spacing: 9) {
@@ -539,59 +613,56 @@ struct IdleNotchView: View {
                             }
                             AutoApproveControls(store: store, accent: statusAccent)
                         }
-                        .padding(.top, store.notchSafeHeight + 8).padding(.horizontal, 20).padding(.bottom, 24)
+                        .padding(.top, layout.panelTopInset).padding(.horizontal, 20).padding(.bottom, 24)
                         .frame(width: panelWidth, alignment: .top)
                         .foregroundStyle(.white)
                         .background {
                             PixelBlockBackground(accent: statusAccent, isActive: true)
                                 .mask {
-                                    NotchShellShape(notchWidth: notchWidth + 10, notchHeight: 35)
+                                    NotchShellShape(cutout: layout.cutout(extraWidth: 10))
                                         .fill(style: FillStyle(eoFill: true))
                                 }
                         }
                         .overlay {
-                            NotchShellShape(notchWidth: notchWidth + 10, notchHeight: 35)
+                            NotchShellShape(cutout: layout.cutout(extraWidth: 10))
                                 .stroke(.black, lineWidth: 3)
                         }
 
                 .overlay(alignment: .top) {
                     Color.black.opacity(0.001)
-                        .frame(height: store.notchSafeHeight + 8)
+                        .frame(height: layout.panelTopInset)
                         .contentShape(Rectangle())
-                        .onTapGesture { isPinnedOpen = false }
+                        .onTapGesture { store.isPinnedOpen = false }
                 }
             } else {
-                ZStack(alignment: .bottom) {
+                ZStack(alignment: .top) {
+                    IdleAnchorShell(layout: layout, isHovered: isHovered)
+                        .allowsHitTesting(false)
+                    // The shell above is drawing only. This is what the
+                    // pointer can hit, and it ends where the menu bar ends.
                     Color.black.opacity(0.001)
-                    if isHovered {
-                        NotchShellShape(notchWidth: notchWidth + 8, notchHeight: 35)
-                            .fill(.black.opacity(0.96), style: FillStyle(eoFill: true))
-                            .allowsHitTesting(false)
-                    }
-                    if store.isAutoApproving {
-                        AutoApproveBadge(store: store).allowsHitTesting(false)
-                    } else if store.serverError != nil {
-                        StatusBadge(text: "ERROR").allowsHitTesting(false)
-                    }
+                        .frame(
+                            width: layout.pointerArea(hovered: isHovered).width,
+                            height: layout.pointerArea(hovered: isHovered).height
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            store.isPinnedOpen = true
+                            isHovered = false
+                        }
+                        .onContinuousHover { phase in
+                            if case .active = phase {
+                                isHovered = true
+                                NSCursor.pointingHand.set()
+                            } else {
+                                isHovered = false
+                                NSCursor.arrow.set()
+                            }
+                        }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel(L("開く"))
+                        .accessibilityAction { store.isPinnedOpen = true }
                 }
-                .frame(width: hoverWidth, height: store.notchSafeHeight + 22)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    isPinnedOpen = true
-                    isHovered = false
-                }
-                .onContinuousHover { phase in
-                    if case .active = phase {
-                        isHovered = true
-                        NSCursor.pointingHand.set()
-                    } else {
-                        isHovered = false
-                        NSCursor.arrow.set()
-                    }
-                }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(L("開く"))
-                .accessibilityAction { isPinnedOpen = true }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -615,10 +686,57 @@ struct IdleNotchView: View {
             Button(L("%@を終了", appName)) { NSApp.terminate(nil) }
         }
         .animation(.spring(response: 0.22, dampingFraction: 0.72), value: isHovered)
-        .animation(.snappy(duration: 0.18), value: isPinnedOpen)
+        .animation(.snappy(duration: 0.18), value: store.isPinnedOpen)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(store.serverError != nil ? L("%@、停止中", appName) : store.isAutoApproving ? L("%@、自動承認中", appName) : L("%@、監視中", appName))
-        .accessibilityHint(isPinnedOpen ? L("クリックするとピン留めを解除します") : L("クリックすると承認待ち表示を固定します"))
+        .accessibilityHint(store.isPinnedOpen ? L("クリックするとピン留めを解除します") : L("クリックすると承認待ち表示を固定します"))
+    }
+}
+
+/// What the idle panel draws at its anchor. Around a notch it shows only under
+/// the pointer. A display without one has nothing to aim at, so a small tab
+/// stays at the top edge and grows under the pointer.
+struct IdleAnchorShell: View {
+    let layout: NotchLayout
+    let isHovered: Bool
+
+    var body: some View {
+        if let cutout = layout.cutout(extraWidth: 8) {
+            if isHovered {
+                NotchShellShape(cutout: cutout)
+                    .fill(.black.opacity(0.96), style: FillStyle(eoFill: true))
+                    .frame(width: layout.hoverShell.width, height: layout.hoverShell.height)
+            }
+        } else {
+            let size = isHovered ? layout.hoverShell : layout.anchor
+            let radius: CGFloat = isHovered ? 9 : 3
+            UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius)
+                .fill(.black.opacity(0.96))
+                .frame(width: size.width, height: size.height)
+        }
+    }
+}
+
+/// The AUTO / ERROR badge. It hangs flush under the anchor, over whatever app
+/// is below the menu bar, so it is drawn in a window that ignores the pointer
+/// and never takes that app's clicks.
+struct NotchBadgeView: View {
+    @ObservedObject var store: ApprovalStore
+
+    var body: some View {
+        Group {
+            if store.requests.isEmpty, !store.isPinnedOpen {
+                if store.isAutoApproving {
+                    AutoApproveBadge(store: store)
+                } else if store.serverError != nil {
+                    StatusBadge(text: "ERROR")
+                }
+            }
+        }
+        // One point lower, so the badge's outline starts where the anchor ends.
+        .padding(.top, store.layout.anchor.height + 1)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityHidden(true)
     }
 }
 
@@ -829,24 +947,32 @@ struct AutoApprovedRecordList: View {
 }
 
 struct NotchShellShape: Shape {
-    let notchWidth: CGFloat
-    let notchHeight: CGFloat
+    /// The hole left for the camera housing, or nil on a display without one.
+    let cutout: CGSize?
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
+        guard let cutout else {
+            // With nothing to wrap around, the shell hangs from the top edge:
+            // its upper corners sit above the screen and are never seen.
+            path.addRoundedRect(
+                in: CGRect(x: rect.minX + 2, y: rect.minY - 12, width: rect.width - 4, height: rect.height + 10),
+                cornerSize: CGSize(width: 9, height: 9)
+            )
+            return path
+        }
         path.addRoundedRect(
             in: rect.insetBy(dx: 2, dy: 2),
             cornerSize: CGSize(width: 9, height: 9)
         )
-        let safeWidth = min(max(notchWidth, 150), rect.width - 48)
-        let cutout = CGRect(
-            x: rect.midX - safeWidth / 2,
-            y: -4,
-            width: safeWidth,
-            height: notchHeight + 4
-        )
+        let safeWidth = min(max(cutout.width, 150), rect.width - 48)
         path.addRoundedRect(
-            in: cutout,
+            in: CGRect(
+                x: rect.midX - safeWidth / 2,
+                y: -4,
+                width: safeWidth,
+                height: cutout.height + 4
+            ),
             cornerSize: CGSize(width: 10, height: 10)
         )
         return path

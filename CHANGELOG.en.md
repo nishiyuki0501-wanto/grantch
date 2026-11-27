@@ -4,6 +4,17 @@
 
 All notable changes are recorded here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-11-27
+
+### Added and improved
+
+- The panel now follows the display. On a Mac with a notch, the shell is cut for that model's notch. On a Mac or external display without one, a small tab sits at the top edge and the panel has no cutout.
+- The `AUTO` and `ERROR` badges now sit flush under the notch.
+
+### Fixed
+
+- Even when idle, the area under the notch (about 34 points below the menu bar) took clicks, so browser tabs right under the menu bar could not be closed or selected. The notch now responds to the pointer only within the menu bar's height, and the `AUTO` and `ERROR` badges let clicks through to the app below.
+
 ## [0.2.2] - 2026-11-23
 
 0.2.1 was never published, so its changes ship in this release.

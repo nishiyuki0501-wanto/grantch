@@ -28,7 +28,8 @@ Read [SECURITY.en.md](SECURITY.en.md) for what it does and does not protect agai
 ## What works
 
 - Native SwiftUI/AppKit `NSPanel` that stays visible across Spaces and full-screen apps
-- Notch-aware hover target that extends beyond the physical cutout, expands for easier clicking, and can be pinned open with one click
+- Notch-aware hover target that is wider than the physical cutout, expands under the pointer, and can be pinned open with one click. It stays within the menu bar's height, so it never takes clicks from the app below (a browser's tab strip, for example)
+- A shape that follows the display: the shell is cut for that Mac's own notch, and a Mac or external display without one gets a small tab at the top edge and a panel with no cutout
 - Original voxel-inspired block pattern with risk-colored tiles and pixel status indicators
 - Claude Code and Codex CLI `PermissionRequest` normalization
 - Antigravity CLI (`agy`) command/file-change approval via its camelCase `PreToolUse` contract; allow or deny, with the app as the only gate when `agy` runs with `--dangerously-skip-permissions`
